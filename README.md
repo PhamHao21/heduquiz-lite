@@ -111,7 +111,7 @@ Mở [http://localhost:4050](http://localhost:5173)
 
 ---
 
-## Lưu ý: tôi đã setting localhost thành 4050 (có thể config lại trong file vite.config.json)
+> **Lưu ý:** tôi đã setting localhost thành 4050 (có thể config lại trong file vite.config.json)
 
 ## ☁️ Deploy lên Vercel
 

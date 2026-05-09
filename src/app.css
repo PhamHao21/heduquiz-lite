@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+    /* Jujutsu Kaisen Color Palette */
+    --color-jjk-void: #0a0a0f;
+    --color-jjk-curse: #4b0082;
+    --color-jjk-crimson: #8b0000;
+    --color-jjk-electric: #00eeff;
+    --color-jjk-energy: #1a1a2e;
+    
+    --font-sans: "Inter", system-ui, sans-serif;
+    --font-heading: "Outfit", sans-serif;
+}
+
+@layer base {
+    body {
+        @apply bg-jjk-void text-slate-100 selection:bg-jjk-curse selection:text-white;
+    }
+}
+
+@layer components {
+    /* Domain Expansion Effect (Glassmorphism) */
+    .domain-expansion {
+        @apply bg-jjk-energy/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+    }
+
+    .cursed-border {
+        @apply border border-transparent bg-gradient-to-r from-jjk-crimson via-jjk-curse to-jjk-electric bg-clip-border;
+        border-image: linear-gradient(to right, #8b0000, #4b0082, #00eeff) 1;
+    }
+
+    .btn-jjk {
+        @apply px-6 py-3 rounded-xl font-black uppercase tracking-widest transition-all 
+               bg-jjk-energy border border-white/10 hover:border-jjk-electric active:scale-95;
+    }
+
+    .btn-jjk-primary {
+        @apply bg-gradient-to-r from-jjk-curse to-indigo-600 text-white shadow-lg shadow-jjk-curse/20 
+               hover:shadow-jjk-curse/40 hover:-translate-y-0.5;
+    }
+
+    .text-jjk-gradient {
+        @apply bg-gradient-to-r from-jjk-crimson via-jjk-curse to-jjk-electric bg-clip-text text-transparent;
+    }
+}
+
+/* Custom Animations */
+@keyframes energy-vibration {
+    0% { transform: translate(0,0); }
+    25% { transform: translate(1px, -1px); }
+    50% { transform: translate(-1px, 1px); }
+    75% { transform: translate(1px, 1px); }
+    100% { transform: translate(0,0); }
+}
+
+.animate-energy {
+    animation: energy-vibration 0.3s infinite ease-in-out;
+}

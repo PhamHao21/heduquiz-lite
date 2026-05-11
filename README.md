@@ -131,7 +131,7 @@ GEMINI_API_KEY
 
 ---
 
-5. Link Website: https://hedu-quiz.vercal.app
+5. Link Website: [https://hedu-quiz.vercal.app](https://heduquiz.vercel.app/kho-de)
 
 ---
 

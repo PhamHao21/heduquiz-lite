@@ -145,6 +145,7 @@ src/
 │   │   ├── quiz/        # QuizEngine, Timer...
 │   │   └── Header.svelte, Footer.svelte
 │   ├── stores/          # auth.svelte.ts (Svelte 5 runes)
+│   ├── server/          # parser, gemini
 │   ├── supabase/        # client.ts, server.ts
 │   └── utils/           # quizParser.ts, shuffle.ts
 ├── routes/
@@ -154,6 +155,7 @@ src/
 │   ├── quiz/[id]/       # Xem đề + ôn thi
 │   ├── auth/            # Đăng nhập
 │   └── api/             # Server endpoints
+│   └── thiet-lap/       # Đổi tên và đăng xuất tài khoản
 └── app.css              # Global styles (Tailwind + custom theme)
 ```
 

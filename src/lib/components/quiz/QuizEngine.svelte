@@ -5,11 +5,13 @@
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import {
     arrangeQuestions, arrangementOf, clearProgress, displayLetter, gradeAttempt, saveProgress,
-    type Answer, type Question, type QuizProgress
+    type Answer, type AttemptMode, type Question, type QuizProgress
   } from '$lib/utils/attempt';
 
   interface Props {
     quizId: string;
+    /** 'review' = lượt ôn câu sai (được lưu kèm tiến trình để làm tiếp) */
+    mode?: AttemptMode;
     sectionId?: string | null;
     questions: Question[];
     /** giới hạn thời gian (giây), 0 = không giới hạn */
@@ -55,6 +57,7 @@
     saveProgress({
       v: 1,
       quizId: init.quizId,
+      mode: init.mode ?? 'normal',
       sectionId: init.sectionId ?? null,
       ...arrangement,
       chosen,

@@ -97,9 +97,13 @@ export function gradeAttempt(questions: Question[], chosen: Record<string, strin
 
 // ── Lưu tiến trình làm bài (localStorage) ─────────────────────────────────
 
+export type AttemptMode = 'normal' | 'review';
+
 export interface QuizProgress extends Arrangement {
   v: 1;
   quizId: string;
+  /** 'review' = lượt ôn câu sai */
+  mode?: AttemptMode;
   sectionId: string | null;
   chosen: Record<string, string[]>;
   current: number;

@@ -23,6 +23,11 @@
 - Xem kết quả chi tiết từng câu sau khi nộp bài
 - **Tự lưu bài đang làm** — refresh hay lỡ đóng tab vẫn làm tiếp được (kể cả đồng hồ đếm giờ)
 - Cảnh báo khi nộp bài mà còn câu chưa làm
+
+### 🔁 Ôn câu sai
+- Nộp bài xong bấm **Ôn lại N câu sai** để làm lại ngay các câu vừa sai
+- Trang đề hiển thị **Câu cần ôn lại**: các câu sai ở lần làm gần nhất, kèm số lần sai (cần đăng nhập)
+- Ôn lại làm đúng thì câu tự rời khỏi danh sách; sửa đề không làm mất lịch sử của các câu giữ nguyên nội dung
 - Lưu lịch sử ôn thi (đăng nhập)
 
 ### 👤 Tài khoản
@@ -102,9 +107,10 @@ Vào **Supabase → SQL Editor**, paste toàn bộ nội dung file:
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_fix_signup_and_play_count.sql
 supabase/migrations/003_save_quiz_and_server_grading.sql
+supabase/migrations/004_keep_question_ids_on_edit.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002, 003 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–004 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 

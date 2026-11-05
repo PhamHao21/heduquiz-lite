@@ -3,8 +3,8 @@
   import { untrack } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
-  import { answeredCount, clearProgress, loadProgress, type Answer, type QuizProgress } from '$lib/utils/attempt';
-  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle } from 'lucide-svelte';
+  import { answeredCount, clearProgress, loadProgress, type Answer, type AttemptMode, type QuizProgress } from '$lib/utils/attempt';
+  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle, Repeat } from 'lucide-svelte';
 
   const { data } = $props();
   // $derived để khi chuyển sang đề khác (cùng route /quiz/[id]) dữ liệu được cập nhật theo.
@@ -12,6 +12,7 @@
   const questions = $derived(data.questions);
   const history   = $derived(data.history);
   const isOwner   = $derived(data.isOwner);
+  const review    = $derived(data.review);
 
   type Phase   = 'intro' | 'options' | 'playing' | 'result';
   type SaveState = 'idle' | 'saving' | 'saved' | 'guest' | 'error';
@@ -32,15 +33,26 @@
   /** tiến trình truyền vào QuizEngine khi bấm "Làm tiếp" */
   let resume        = $state<QuizProgress | null>(null);
 
+  /** 'review' = lượt ôn câu sai: chỉ gồm các câu trong reviewIds, không giới hạn thời gian */
+  let mode          = $state<AttemptMode>('normal');
+  let reviewIds     = $state<string[]>([]);
+  let showAllReview = $state(false);
+
   // Mỗi khi mở một đề (kể cả chuyển từ đề này sang đề khác): về màn hình giới thiệu
   // và kiểm tra xem có bài đang làm dở không. Chạy ở trình duyệt nên đọc được localStorage.
+  // Chỉ theo dõi id (giá trị nguyên thuỷ): sau khi lưu kết quả, invalidateAll() tạo object
+  // quiz mới nhưng cùng id → không được reset về màn hình giới thiệu.
+  const quizId = $derived(data.quiz.id);
   $effect(() => {
-    const id = quiz.id;
+    const id = quizId;
     untrack(() => {
       phase = 'intro';
       resultData = null;
       selectedSec = null;
       resume = null;
+      mode = 'normal';
+      reviewIds = [];
+      showAllReview = false;
       savedProgress = loadProgress(id);
     });
   });
@@ -107,12 +119,29 @@
     savedProgress = null;
     resume = null;
     resultData = null;
+    mode = 'normal';
+    reviewIds = [];
+    phase = 'playing';
+  }
+
+  /** Bắt đầu lượt ôn chỉ gồm các câu sai (không giới hạn thời gian). */
+  function startReview(ids: string[]) {
+    if (ids.length === 0) return;
+    clearProgress(quiz.id);
+    savedProgress = null;
+    resume = null;
+    resultData = null;
+    mode = 'review';
+    reviewIds = ids;
+    selectedSec = null;
     phase = 'playing';
   }
 
   function continueQuiz() {
     if (!savedProgress) return;
     resume = savedProgress;
+    mode = savedProgress.mode ?? 'normal';
+    reviewIds = mode === 'review' ? savedProgress.order : [];
     selectedSec = savedProgress.sectionId;
     resultData = null;
     phase = 'playing';
@@ -127,6 +156,23 @@
   const resumeQuestions = $derived(
     resume ? questions.filter((q: { id: string }) => resume!.order.includes(q.id)) : []
   );
+
+  /** Câu hỏi cho lượt chơi hiện tại (tiếp tục / ôn câu sai / làm bình thường). */
+  const playQuestions = $derived(
+    resume ? resumeQuestions
+    : mode === 'review' ? questions.filter((q: { id: string }) => reviewIds.includes(q.id))
+    : activeQuestions()
+  );
+
+  type QuestionRow = { id: string; content: string };
+  const questionById = $derived(new Map<string, QuestionRow>(questions.map((q: QuestionRow) => [q.id, q])));
+
+  /** Câu cần ôn (sai ở lần gần nhất, theo lịch sử đã lưu) */
+  const needsReview = $derived(review?.needsReview.filter(s => questionById.has(s.question_id)) ?? []);
+  const reviewList  = $derived(showAllReview ? needsReview : needsReview.slice(0, 5));
+
+  /** Câu sai trong lượt vừa nộp */
+  const wrongInResult = $derived(resultData?.answers.filter(a => !a.is_correct).map(a => a.question_id) ?? []);
 
   function formatTime(s: number) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -174,7 +220,9 @@
 
         {#if savedProgress}
           <div class="mt-6 rounded-2xl p-4" style="background:#eef2ff;border:1px solid #c7d2fe;">
-            <p class="text-sm font-bold" style="color:#3730a3;">Bạn có bài đang làm dở</p>
+            <p class="text-sm font-bold" style="color:#3730a3;">
+              {savedProgress.mode === 'review' ? 'Bạn có lượt ôn câu sai đang làm dở' : 'Bạn có bài đang làm dở'}
+            </p>
             <p class="mt-0.5 text-xs" style="color:#4f46e5;">
               Đã làm {answeredCount(savedProgress)}/{savedProgress.order.length} câu{savedProgress.endsAt
                 ? ` · ${savedProgress.endsAt > Date.now() ? `còn ${formatTime(Math.ceil((savedProgress.endsAt - Date.now()) / 1000))}` : 'đã hết giờ'}`
@@ -214,6 +262,48 @@
           {/if}
         </div>
       </div>
+
+      {#if needsReview.length > 0}
+        <div class="rounded-[2rem] p-6 shadow-sm" style="background:#ffffff;border:1px solid #fde68a;">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 class="flex items-center gap-2 text-xs font-black uppercase tracking-widest" style="color:#b45309;">
+                <Repeat size={14} /> Câu cần ôn lại
+              </h2>
+              <p class="mt-1 text-sm" style="color:#64748b;">
+                {needsReview.length} câu bạn trả lời sai ở lần làm gần nhất. Ôn lại làm đúng thì câu sẽ tự rời khỏi danh sách.
+              </p>
+            </div>
+            <button
+              onclick={() => startReview(needsReview.map(s => s.question_id))}
+              class="flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-wider shadow"
+              style="background:#f59e0b;color:#ffffff;"
+            >
+              <Repeat size={14} /> Ôn {needsReview.length} câu sai
+            </button>
+          </div>
+
+          <ul class="mt-4 space-y-2">
+            {#each reviewList as stat (stat.question_id)}
+              <li class="flex items-start justify-between gap-3 rounded-xl px-4 py-3" style="background:#fffbeb;">
+                <span class="line-clamp-2 whitespace-pre-line text-sm" style="color:#1e293b;">
+                  {questionById.get(stat.question_id)?.content}
+                </span>
+                <span class="shrink-0 text-xs font-bold" style="color:#b45309;">Sai {stat.wrong}/{stat.seen} lần</span>
+              </li>
+            {/each}
+          </ul>
+          {#if needsReview.length > 5}
+            <button
+              onclick={() => { showAllReview = !showAllReview; }}
+              class="mt-3 text-xs font-bold hover:underline"
+              style="color:#b45309;"
+            >{showAllReview ? 'Thu gọn' : `Xem tất cả ${needsReview.length} câu`}</button>
+          {/if}
+        </div>
+      {:else if review && review.attemptsCounted > 0}
+        <p class="px-2 text-xs" style="color:#059669;">✓ Bạn đã làm đúng tất cả các câu ở lần làm gần nhất.</p>
+      {/if}
 
       {#if history.length > 0}
         <div class="rounded-[2rem] p-6 shadow-sm" style="background:#ffffff;border:1px solid #f1f5f9;">
@@ -330,11 +420,17 @@
 
   <!-- ── PLAYING ── -->
   {:else if phase === 'playing'}
+    {#if mode === 'review'}
+      <p class="mb-4 flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold" style="background:#fffbeb;color:#b45309;">
+        <Repeat size={14} /> Đang ôn {playQuestions.length} câu sai · không giới hạn thời gian
+      </p>
+    {/if}
     <QuizEngine
       quizId={quiz.id}
-      sectionId={selectedSec}
-      questions={resume ? resumeQuestions : activeQuestions()}
-      timeLimit={timeLimitSecs}
+      {mode}
+      sectionId={mode === 'review' ? null : selectedSec}
+      questions={playQuestions}
+      timeLimit={mode === 'review' ? 0 : timeLimitSecs}
       shuffleQuestions={shuffleQ}
       shuffleOptions={shuffleOpts}
       {resume}
@@ -364,10 +460,23 @@
           {/if}
         </p>
 
-        <div class="mt-6 flex justify-center gap-3">
+        {#if mode === 'review' && wrongInResult.length === 0}
+          <p class="mt-4 text-sm font-bold" style="color:#059669;">🎉 Bạn đã làm đúng hết các câu sai!</p>
+        {/if}
+
+        <div class="mt-6 flex flex-wrap justify-center gap-3">
+          {#if wrongInResult.length > 0}
+            <button
+              onclick={() => startReview(wrongInResult)}
+              class="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition hover:opacity-90"
+              style="background:#f59e0b;color:#ffffff;"
+            >
+              <Repeat size={16} /> Ôn lại {wrongInResult.length} câu sai
+            </button>
+          {/if}
           <!-- Fix nút Làm lại: text màu tối explicit -->
           <button
-            onclick={() => { resultData = null; phase = 'options'; }}
+            onclick={() => { resultData = null; mode = 'normal'; reviewIds = []; phase = 'options'; }}
             class="flex items-center gap-2 rounded-2xl border px-5 py-3 text-sm font-bold transition hover:opacity-80"
             style="border-color:#e2e8f0;background:#ffffff;color:#374151;"
           >

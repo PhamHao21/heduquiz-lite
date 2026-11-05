@@ -1,6 +1,7 @@
 // src/routes/quiz/[id]/+page.server.ts
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { summariseReview, type ReviewSummary } from '$lib/utils/review';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const { session } = await locals.safeGetSession();
@@ -29,23 +30,30 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     .eq('quiz_id', params.id)
     .order('position', { ascending: true });
 
-  // Lịch sử làm bài của user này (nếu đã login)
+  // Lịch sử làm bài của user này (nếu đã login): 5 lượt gần nhất để hiển thị,
+  // và tối đa 50 lượt để tính các câu cần ôn (trả lời sai ở lần gần nhất).
   let history: { id: string; score: number; total: number; time_spent: number | null; completed_at: string }[] = [];
+  let review: ReviewSummary | null = null;
   if (session) {
     const { data } = await locals.supabase
       .from('results')
-      .select('id, score, total, time_spent, completed_at')
+      .select('id, score, total, time_spent, completed_at, answers')
       .eq('quiz_id', params.id)
       .eq('user_id', session.user.id)
       .order('completed_at', { ascending: false })
-      .limit(5);
-    history = data ?? [];
+      .limit(50);
+    const attempts = data ?? [];
+    history = attempts.slice(0, 5).map(h => ({
+      id: h.id, score: h.score, total: h.total, time_spent: h.time_spent, completed_at: h.completed_at
+    }));
+    review = summariseReview(attempts, (questions ?? []).map(q => q.id));
   }
 
   return {
     quiz,
     questions: questions ?? [],
     history,
+    review,
     isOwner: quiz.owner_id === session?.user.id
   };
 };

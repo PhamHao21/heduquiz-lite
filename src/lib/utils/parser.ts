@@ -32,7 +32,9 @@ export type ParseErrorCode =
   | 'insufficient_answers'
   | 'missing_correct_answer';
 
-const OPTION_LABEL_RE = /^([A-Za-z])\.\s*/;
+// Nhãn đáp án: một chữ cái A–H theo sau là dấu chấm ("A. ...", "b. ...").
+// Giới hạn A–H để các dòng như "I. phát biểu..." trong đề không bị hiểu nhầm là đáp án.
+const OPTION_LABEL_RE = /^([A-Ha-h])\.\s*/;
 
 function normaliseLine(raw: string): string {
   return raw.replace(/<br\s*\/>/gi, '\n').trim();
@@ -42,6 +44,11 @@ function parseOption(raw: string): { label: string; text: string } {
   const match = raw.match(OPTION_LABEL_RE);
   if (match) return { label: match[1].toUpperCase(), text: raw.slice(match[0].length).trim() };
   return { label: '', text: raw.trim() };
+}
+
+/** Nhãn hiển thị theo vị trí: 0 → A, 1 → B, ... */
+export function optionLabel(index: number): string {
+  return String.fromCharCode(65 + index);
 }
 
 function validateQuestion(q: ParsedQuestion): ParseErrorCode | undefined {
@@ -95,26 +102,51 @@ export function parseQuizText(raw: string): ParseResult {
     const question: ParsedQuestion = { position, content: '', options: [], multi: false };
     const contentLines: string[] = [];
     let parsingOptions = false;
+    let markedMulti = false;
+    // Đáp án trước đó có nhãn rõ ràng ("A.") hay không — dùng để quyết định
+    // một dòng không nhãn là đáp án mới hay là phần tiếp theo của đáp án trước.
+    let lastOptionLabelled = false;
 
-    for (const rawLine of block.lines) {
+    block.lines.forEach((rawLine, lineIndex) => {
       const line = normaliseLine(rawLine);
-      if (line.startsWith('**')) {
-        parsingOptions = true;
-        question.multi = true;
-        const { label, text } = parseOption(line.slice(2).trim());
+      const starred = line.startsWith('*');
+
+      // Dòng đầu tiên của mỗi khối luôn là nội dung câu hỏi (trừ khi bắt đầu bằng *),
+      // nên câu hỏi như "A. Einstein sinh năm nào?" không bị hiểu nhầm là đáp án.
+      if (lineIndex === 0 && !starred) {
+        contentLines.push(line);
+        return;
+      }
+
+      if (starred) {
+        const isDouble = line.startsWith('**');
+        if (isDouble) markedMulti = true;
+        const { label, text } = parseOption(line.slice(isDouble ? 2 : 1).trim());
         question.options.push({ label, text, is_correct: true });
-      } else if (line.startsWith('*')) {
         parsingOptions = true;
-        const { label, text } = parseOption(line.slice(1).trim());
-        question.options.push({ label, text, is_correct: true });
-      } else if (parsingOptions || OPTION_LABEL_RE.test(line)) {
-        parsingOptions = true;
+        lastOptionLabelled = label !== '';
+      } else if (OPTION_LABEL_RE.test(line)) {
         const { label, text } = parseOption(line);
         question.options.push({ label, text, is_correct: false });
+        parsingOptions = true;
+        lastOptionLabelled = true;
+      } else if (parsingOptions && lastOptionLabelled) {
+        // Đáp án viết trên nhiều dòng → nối vào đáp án trước.
+        const prev = question.options[question.options.length - 1];
+        prev.text = `${prev.text}\n${line}`.trim();
+      } else if (parsingOptions) {
+        // Kiểu đáp án không có nhãn ("*Hà Nội / Huế / Đà Nẵng").
+        question.options.push({ label: '', text: line, is_correct: false });
       } else {
         contentLines.push(line);
       }
-    }
+    });
+
+    // Luôn đánh lại nhãn theo vị trí để mỗi đáp án có nhãn duy nhất
+    // (tránh chọn một đáp án mà sáng cả các đáp án khác cùng nhãn rỗng/trùng).
+    question.options = question.options.map((o, i) => ({ ...o, label: optionLabel(i) }));
+    // Có từ 2 đáp án đúng trở lên thì là câu nhiều đáp án, kể cả khi người nhập dùng * thay vì **.
+    question.multi = markedMulti || question.options.filter(o => o.is_correct).length > 1;
 
     question.content = contentLines.join('\n').trim();
     const errorCode = validateQuestion(question);
@@ -127,4 +159,14 @@ export function parseQuizText(raw: string): ParseResult {
     sections, questions, errors,
     stats: { total: questions.length, valid: questions.filter(q => !q.error).length, errorCount: errors.length }
   };
+}
+
+/**
+ * Chuyển câu hỏi đã parse thành các dòng để lưu DB: bỏ câu lỗi và đánh lại
+ * position liên tục 1..n, để phạm vi "câu X → Y" của các phần thi khớp với position.
+ */
+export function toQuestionRows(questions: ParsedQuestion[]) {
+  return questions
+    .filter(q => !q.error)
+    .map((q, i) => ({ position: i + 1, content: q.content, options: q.options, multi: q.multi }));
 }

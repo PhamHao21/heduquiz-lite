@@ -5,5 +5,7 @@ export {
   type ParsedQuestion,
   type ParsedSection,
   type ParseResult,
-  type ParseErrorCode
+  type ParseErrorCode,
+  toQuestionRows,
+  optionLabel
 } from '$lib/utils/parser';

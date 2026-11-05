@@ -4,6 +4,7 @@
   import { authStore } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
   import { supabase } from '$lib/supabase/client';
+  import { toQuestionRows } from '$lib/utils/quizParser';
 
   type Level = typeof levels[number];
   type Mode  = 'topic' | 'file';
@@ -186,13 +187,11 @@
         .select('id').single();
       if (qErr || !quiz) throw qErr ?? new Error('Lỗi tạo quiz');
 
-      const validQs = parsed.questions
-        .filter((q: { error?: string }) => !q.error)
-        .map((q: { position: number; content: string; options: unknown[]; multi: boolean }) => ({
-          quiz_id: quiz.id, position: q.position,
-          content: q.content, options: q.options, multi: q.multi
-        }));
-      if (validQs.length > 0) await supabase.from('questions').insert(validQs);
+      const validQs = toQuestionRows(parsed.questions).map(q => ({ ...q, quiz_id: quiz.id }));
+      if (validQs.length > 0) {
+        const { error: qsErr } = await supabase.from('questions').insert(validQs);
+        if (qsErr) throw qsErr;
+      }
 
       goto(`/quiz/${quiz.id}`);
     } catch (e: unknown) {

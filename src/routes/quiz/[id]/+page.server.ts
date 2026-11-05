@@ -38,13 +38,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     history = data ?? [];
   }
 
-  // Tăng play_count (fire-and-forget, không block response)
-  locals.supabase
-    .from('quizzes')
-    .update({ play_count: (quiz.play_count ?? 0) + 1 })
-    .eq('id', params.id)
-    .then(() => {});
-
   return {
     quiz,
     questions: questions ?? [],

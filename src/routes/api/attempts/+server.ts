@@ -1,5 +1,5 @@
 // src/routes/api/attempts/+server.ts
-// Lưu lịch sử làm bài (alias của results, dùng cho client-side fetch)
+// Gọi khi nộp bài: tăng lượt ôn của đề và lưu lịch sử làm bài (nếu đã đăng nhập)
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -7,11 +7,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const { session } = await locals.safeGetSession();
 
   const body = await request.json().catch(() => null);
-  if (!body?.quiz_id) throw error(400, 'Missing quiz_id');
+  if (!body?.quiz_id || typeof body.quiz_id !== 'string') throw error(400, 'Missing quiz_id');
+
+  // Tăng play_count nguyên tử qua RPC (security definer, xem migration 002).
+  // Không chặn việc lưu kết quả nếu RPC lỗi (VD: chưa chạy migration).
+  const { error: rpcErr } = await locals.supabase.rpc('increment_play_count', { p_quiz_id: body.quiz_id });
+  if (rpcErr) console.error('increment_play_count failed:', rpcErr.message);
+
+  // Khách chưa đăng nhập: chỉ tính lượt ôn, không lưu kết quả.
+  if (!session) return json({ ok: true, saved: false });
 
   const { error: err } = await locals.supabase.from('results').insert({
     quiz_id:    body.quiz_id,
-    user_id:    session?.user.id ?? null,
+    user_id:    session.user.id,
     score:      body.score   ?? 0,
     total:      body.total   ?? 0,
     time_spent: body.time_spent ?? null,
@@ -19,7 +27,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   });
 
   if (err) throw error(500, err.message);
-  return json({ ok: true });
+  return json({ ok: true, saved: true });
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {

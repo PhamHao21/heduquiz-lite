@@ -23,8 +23,21 @@
     onComplete
   }: Props = $props();
 
+  // Chuẩn hoá dữ liệu đề đã lưu từ trước bản sửa parser: đáp án thiếu nhãn hoặc trùng nhãn
+  // được đánh lại A, B, C… (việc chọn/chấm điểm dựa vào nhãn nên nhãn phải duy nhất), và
+  // câu có từ 2 đáp án đúng luôn được coi là câu nhiều đáp án.
+  function normalise(q: Question): Question {
+    const labels = q.options.map(o => o.label);
+    const labelsOk = labels.every(Boolean) && new Set(labels).size === labels.length;
+    const options = labelsOk
+      ? q.options
+      : q.options.map((o, i) => ({ ...o, label: String.fromCharCode(65 + i) }));
+    return { ...q, options, multi: q.multi || options.filter(o => o.is_correct).length > 1 };
+  }
+
   const questions: Question[] = (() => {
-    const qs = shuffleQuestions ? shuffle([...rawQuestions]) : [...rawQuestions];
+    const base = rawQuestions.map(normalise);
+    const qs = shuffleQuestions ? shuffle(base) : base;
     return shuffleOptions ? qs.map(q => ({ ...q, options: shuffle([...q.options]) })) : qs;
   })();
 
@@ -134,7 +147,7 @@
 
   <!-- Options grid -->
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    {#each q.options as opt (opt.label || opt.text)}
+    {#each q.options as opt (opt.label)}
       <button
         onclick={() => toggleOption(opt.label)}
         disabled={submitted}

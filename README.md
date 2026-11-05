@@ -98,7 +98,7 @@ Vào **Supabase → SQL Editor**, paste toàn bộ nội dung file:
 
 ```
 supabase/migrations/001_initial_schema.sql
-supabase/migrations/002_add_sections.sql
+supabase/migrations/002_fix_signup_and_play_count.sql
 ```
 
 ### 4. Khởi động
@@ -107,11 +107,17 @@ supabase/migrations/002_add_sections.sql
 npm run dev
 ```
 
-Mở [http://localhost:4050](http://localhost:5173)
+Mở [http://localhost:4050](http://localhost:4050)
 
 ---
 
-> **Lưu ý:** tôi đã setting localhost thành 4050 (có thể config lại trong file vite.config.json)
+> **Lưu ý:** tôi đã setting localhost thành 4050 (có thể config lại trong file vite.config.ts)
+
+### 5. Chạy test
+
+```bash
+npm test
+```
 
 ## ☁️ Deploy lên Vercel
 
@@ -131,7 +137,7 @@ GEMINI_API_KEY
 
 ---
 
-5. Link Website: [https://hedu-quiz.vercal.app](https://heduquiz.vercel.app/kho-de)
+5. Link Website: [https://heduquiz.vercel.app](https://heduquiz.vercel.app/kho-de)
 
 ---
 

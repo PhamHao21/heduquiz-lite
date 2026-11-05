@@ -1,7 +1,6 @@
 <!-- src/routes/quiz/[id]/+page.svelte -->
 <script lang="ts">
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
-  import { authStore } from '$lib/stores/auth.svelte';
   import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer } from 'lucide-svelte';
 
   const { data } = $props();
@@ -22,11 +21,17 @@
   const sections: Section[] = (quiz.sections as Section[]) ?? [];
   const hasSection = sections.length > 0;
 
+  // Phạm vi "câu X → Y" của phần thi tính theo thứ tự câu trong đề (1..n), không theo
+  // cột position — dữ liệu cũ có thể có position bị nhảy số khi đề từng có câu lỗi.
+  function questionsInSection(sec: Section) {
+    return questions.filter((_q: unknown, i: number) => i + 1 >= sec.from && i + 1 <= sec.to);
+  }
+
   const activeQuestions = $derived(() => {
     if (!selectedSec) return questions;
     const sec = sections.find((s: Section) => s.id === selectedSec);
     if (!sec) return questions;
-    return questions.filter((q: { position: number }) => q.position >= sec.from && q.position <= sec.to);
+    return questionsInSection(sec);
   });
 
   const timeLimitSecs = $derived(timeLimitMins * 60);
@@ -44,16 +49,15 @@
   async function handleComplete(answers: Answer[], timeSpent: number) {
     resultData = { answers, timeSpent };
     phase = 'result';
-    if (authStore.isAuthed) {
-      await fetch('/api/attempts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quiz_id: quiz.id, score: answers.filter(a => a.is_correct).length,
-          total: answers.length, time_spent: timeSpent, answers
-        })
-      });
-    }
+    // Gửi cho cả khách: server tăng lượt ôn, và chỉ lưu kết quả khi đã đăng nhập.
+    await fetch('/api/attempts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quiz_id: quiz.id, score: answers.filter(a => a.is_correct).length,
+        total: answers.length, time_spent: timeSpent, answers
+      })
+    }).catch(() => {});
   }
 
   function startQuiz() { resultData = null; phase = 'playing'; }
@@ -163,7 +167,7 @@
               {#if selectedSec === null}<span style="color:#818cf8;">✓</span>{/if}
             </button>
             {#each sections as sec (sec.id)}
-              {@const cnt = questions.filter((q: { position: number }) => q.position >= sec.from && q.position <= sec.to).length}
+              {@const cnt = questionsInSection(sec).length}
               <button
                 onclick={() => { selectedSec = sec.id; }}
                 class="flex w-full items-center justify-between rounded-2xl border-2 px-4 py-3 text-sm font-bold transition"

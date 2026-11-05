@@ -4,7 +4,7 @@
   import Timer from './Timer.svelte';
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import {
-    arrangeQuestions, arrangementOf, clearProgress, displayLetter, gradeAttempt, saveProgress,
+    arrangeQuestions, arrangementOf, clearProgress, displayLetter, gradeAttempt, isAnswerCorrect, saveProgress,
     type Answer, type AttemptMode, type Question, type QuizProgress
   } from '$lib/utils/attempt';
 
@@ -18,6 +18,8 @@
     timeLimit?: number;
     shuffleQuestions?: boolean;
     shuffleOptions?: boolean;
+    /** chế độ Học: chọn xong là hiện đáp án đúng + giải thích ngay */
+    study?: boolean;
     /** tiến trình đã lưu để làm tiếp sau khi refresh/đóng tab */
     resume?: QuizProgress | null;
     onComplete: (answers: Answer[], timeSpent: number) => void;
@@ -38,17 +40,29 @@
   const timeLimit = init.timeLimit ?? 0;
   const startedAt = resume?.startedAt ?? Date.now();
   const endsAt: number | null = resume ? resume.endsAt : timeLimit > 0 ? startedAt + timeLimit * 1000 : null;
+  const study = resume ? !!resume.study : !!init.study;
 
   let current     = $state(Math.min(Math.max(resume?.current ?? 0, 0), Math.max(total - 1, 0)));
   let chosen      = $state<Record<string, string[]>>(resume?.chosen ?? {});
   let submitted   = $state(false);
   let confirmOpen = $state(false);
+  /** (chế độ Học) các câu đã hiện đáp án — không đổi được lựa chọn nữa */
+  let revealed    = $state<Record<string, boolean>>(resume?.revealed ?? {});
 
   const q             = $derived(questions[current]);
   const pct           = $derived(Math.round(((current + 1) / total) * 100));
   const isLast        = $derived(current === total - 1);
   const currentChosen = $derived(chosen[q?.id] ?? []);
   const unanswered    = $derived(questions.filter(item => !(chosen[item.id]?.length)).length);
+  /** câu hiện tại đã hiện đáp án chưa (đã nộp bài, hoặc chế độ Học đã kiểm tra) */
+  const qRevealed     = $derived(submitted || !!revealed[q?.id]);
+  const qCorrect      = $derived(q ? isAnswerCorrect(q, currentChosen) : false);
+  const correctLetters = $derived(
+    q ? q.options.map((o, i) => (o.is_correct ? displayLetter(i) : null)).filter(Boolean).join(', ') : ''
+  );
+  /** (chế độ Học) số câu đã kiểm tra và số câu đúng */
+  const studyChecked  = $derived(questions.filter(item => revealed[item.id]));
+  const studyCorrect  = $derived(studyChecked.filter(item => isAnswerCorrect(item, chosen[item.id] ?? [])).length);
 
   // Tự lưu tiến trình mỗi khi chọn đáp án / chuyển câu → refresh hay lỡ đóng tab vẫn làm tiếp được.
   const arrangement = arrangementOf(questions);
@@ -59,6 +73,8 @@
       quizId: init.quizId,
       mode: init.mode ?? 'normal',
       sectionId: init.sectionId ?? null,
+      study,
+      revealed,
       ...arrangement,
       chosen,
       current,
@@ -74,7 +90,7 @@
   });
 
   function toggleOption(label: string) {
-    if (submitted) return;
+    if (qRevealed) return;
     const prev = chosen[q.id] ?? [];
     chosen = {
       ...chosen,
@@ -82,6 +98,46 @@
         ? prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
         : [label]
     };
+    // Chế độ Học: câu một đáp án chọn xong là hiện kết quả luôn.
+    if (study && !q.multi) revealed = { ...revealed, [q.id]: true };
+  }
+
+  /** Chế độ Học, câu nhiều đáp án: chọn xong bấm "Kiểm tra". */
+  function checkAnswer() {
+    if (!study || qRevealed || currentChosen.length === 0) return;
+    revealed = { ...revealed, [q.id]: true };
+  }
+
+  function next() {
+    if (current < total - 1) current++;
+  }
+
+  // Phím tắt: A–H hoặc 1–8 chọn đáp án, ←/→ chuyển câu, Enter: kiểm tra / câu tiếp / nộp bài.
+  function onKeydown(e: KeyboardEvent) {
+    if (submitted || confirmOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+
+    const key = e.key;
+    let index = -1;
+    if (/^[1-8]$/.test(key)) index = Number(key) - 1;
+    else if (/^[a-h]$/i.test(key)) index = key.toUpperCase().charCodeAt(0) - 65;
+    if (index >= 0) {
+      if (index < q.options.length) {
+        e.preventDefault();
+        toggleOption(q.options[index].label);
+      }
+      return;
+    }
+
+    if (key === 'ArrowRight') { e.preventDefault(); next(); }
+    else if (key === 'ArrowLeft') { e.preventDefault(); if (current > 0) current--; }
+    else if (key === 'Enter' && target?.tagName !== 'BUTTON' && target?.tagName !== 'A') {
+      e.preventDefault();
+      if (study && q.multi && !qRevealed && currentChosen.length > 0) checkAnswer();
+      else if (!isLast) next();
+      else requestSubmit();
+    }
   }
 
   /** Bấm "Nộp bài": còn câu chưa làm thì hỏi lại trước. */
@@ -104,7 +160,7 @@
   // Dùng inline style thay vì Tailwind text-* để không bị body {color: slate-100} ghi đè
   function optionStyle(label: string, is_correct: boolean): string {
     const sel = currentChosen.includes(label);
-    if (!submitted) {
+    if (!qRevealed) {
       return sel
         ? 'border-color:#6366f1;background:#eef2ff;color:#3730a3;'
         : 'border-color:#e2e8f0;background:#ffffff;color:#374151;';
@@ -116,7 +172,7 @@
 
   function badgeStyle(label: string, is_correct: boolean): string {
     const sel = currentChosen.includes(label);
-    if (!submitted) {
+    if (!qRevealed) {
       return sel
         ? 'background:#6366f1;border-color:#6366f1;color:#ffffff;'
         : 'background:#ffffff;border-color:#cbd5e1;color:#94a3b8;';
@@ -126,6 +182,8 @@
     return 'background:#ffffff;border-color:#e2e8f0;color:#cbd5e1;';
   }
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <ConfirmModal
   open={confirmOpen}
@@ -147,7 +205,9 @@
   <div class="flex items-center gap-4">
     <div class="flex-1">
       <div class="mb-1 flex justify-between text-xs" style="color:#64748b;">
-        <span>Câu {current + 1} / {total} · đã làm {total - unanswered}</span>
+        <span>
+          Câu {current + 1} / {total} · đã làm {total - unanswered}{#if study && studyChecked.length > 0}<span style="color:#059669;">{` · đúng ${studyCorrect}/${studyChecked.length}`}</span>{/if}
+        </span>
         <button
           onclick={requestSubmit}
           disabled={submitted}
@@ -175,6 +235,11 @@
           Chọn nhiều
         </span>
       {/if}
+      {#if study}
+        <span class="ml-auto rounded-full px-2 py-0.5 text-xs font-semibold" style="background:#ecfdf5;color:#047857;">
+          Chế độ Học
+        </span>
+      {/if}
     </div>
     <p class="whitespace-pre-line text-base font-medium leading-relaxed" style="color:#1e293b;">
       {q.content}
@@ -186,7 +251,7 @@
     {#each q.options as opt, oi (opt.label)}
       <button
         onclick={() => toggleOption(opt.label)}
-        disabled={submitted}
+        disabled={qRevealed}
         class="flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left text-sm transition-all"
         style={optionStyle(opt.label, opt.is_correct)}
       >
@@ -198,14 +263,40 @@
           {displayLetter(oi)}
         </span>
         <span class="flex-1 whitespace-pre-line font-medium">{opt.text}</span>
-        {#if submitted && opt.is_correct}
+        {#if qRevealed && opt.is_correct}
           <span style="color:#059669;font-weight:bold;">✓</span>
-        {:else if submitted && currentChosen.includes(opt.label) && !opt.is_correct}
+        {:else if qRevealed && currentChosen.includes(opt.label) && !opt.is_correct}
           <span style="color:#dc2626;font-weight:bold;">✗</span>
         {/if}
       </button>
     {/each}
   </div>
+
+  <!-- Chế độ Học: nút kiểm tra (câu nhiều đáp án) và kết quả + giải thích -->
+  {#if study && q.multi && !qRevealed}
+    <button
+      onclick={checkAnswer}
+      disabled={currentChosen.length === 0}
+      class="self-center rounded-xl px-6 py-2.5 text-sm font-bold shadow transition disabled:opacity-40"
+      style="background:#059669;color:#ffffff;"
+    >Kiểm tra</button>
+  {/if}
+  {#if study && qRevealed}
+    <div
+      class="rounded-xl border-2 p-4 text-sm"
+      style="border-color:{qCorrect ? '#6ee7b7' : '#fca5a5'};background:{qCorrect ? '#ecfdf5' : '#fef2f2'};"
+      role="status"
+    >
+      <p class="font-bold" style="color:{qCorrect ? '#047857' : '#b91c1c'};">
+        {#if qCorrect}✓ Chính xác!{:else}✗ Chưa đúng — đáp án đúng: {correctLetters}{/if}
+      </p>
+      {#if q.explanation}
+        <p class="mt-2 whitespace-pre-line leading-relaxed" style="color:#334155;">
+          <span class="font-semibold">Giải thích:</span> {q.explanation}
+        </p>
+      {/if}
+    </div>
+  {/if}
 
   <!-- Navigation -->
   <div class="flex items-center justify-between gap-3">
@@ -224,7 +315,9 @@
           class="h-2.5 w-2.5 rounded-full transition-all"
           style="
             transform: {i === current ? 'scale(1.25)' : 'scale(1)'};
-            background: {i === current ? '#6366f1' : (chosen[qDot.id]?.length ? '#a5b4fc' : '#cbd5e1')};
+            background: {i === current ? '#6366f1'
+              : study && revealed[qDot.id] ? (isAnswerCorrect(qDot, chosen[qDot.id] ?? []) ? '#34d399' : '#f87171')
+              : chosen[qDot.id]?.length ? '#a5b4fc' : '#cbd5e1'};
           "
         ></button>
       {/each}
@@ -239,10 +332,14 @@
       >Nộp bài</button>
     {:else}
       <button
-        onclick={() => { if (current < total - 1) current++; }}
+        onclick={next}
         class="shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition"
         style="background:#ffffff;border-color:#e2e8f0;color:#475569;"
       >Tiếp →</button>
     {/if}
   </div>
+
+  <p class="hidden text-center text-[11px] sm:block" style="color:#94a3b8;">
+    Phím tắt: <b>A–D</b> hoặc <b>1–4</b> chọn đáp án · <b>← →</b> chuyển câu · <b>Enter</b> {study ? 'kiểm tra / ' : ''}câu tiếp
+  </p>
 </div>

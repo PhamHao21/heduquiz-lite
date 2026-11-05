@@ -4,7 +4,7 @@
   import { invalidateAll } from '$app/navigation';
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
   import { answeredCount, clearProgress, loadProgress, type Answer, type AttemptMode, type QuizProgress } from '$lib/utils/attempt';
-  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle, Repeat } from 'lucide-svelte';
+  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle, Repeat, GraduationCap, FileCheck } from 'lucide-svelte';
 
   const { data } = $props();
   // $derived để khi chuyển sang đề khác (cùng route /quiz/[id]) dữ liệu được cập nhật theo.
@@ -27,6 +27,8 @@
   let shuffleOpts   = $state(true);
   let timeLimitMins = $state(0);
   let selectedSec   = $state<string | null>(null);
+  /** chế độ Học: hiện đáp án + giải thích ngay sau mỗi câu */
+  let studyMode     = $state(false);
 
   /** bài đang làm dở được lưu trên máy này */
   let savedProgress = $state<QuizProgress | null>(null);
@@ -360,6 +362,35 @@
         </div>
       {/if}
 
+      <!-- Cách làm bài -->
+      <div class="space-y-2">
+        <p class="text-[10px] font-black uppercase tracking-widest" style="color:#94a3b8;">Cách làm bài</p>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            onclick={() => { studyMode = false; }}
+            class="flex items-start gap-3 rounded-2xl border-2 px-4 py-3 text-left transition"
+            style="border-color:{!studyMode ? '#6366f1' : '#e2e8f0'};background:{!studyMode ? '#eef2ff' : '#ffffff'};"
+          >
+            <FileCheck size={18} style="color:{!studyMode ? '#4338ca' : '#94a3b8'};margin-top:2px;" />
+            <span>
+              <span class="block text-sm font-bold" style="color:{!studyMode ? '#4338ca' : '#475569'};">Thi thử</span>
+              <span class="block text-xs" style="color:#64748b;">Xem đáp án sau khi nộp bài</span>
+            </span>
+          </button>
+          <button
+            onclick={() => { studyMode = true; }}
+            class="flex items-start gap-3 rounded-2xl border-2 px-4 py-3 text-left transition"
+            style="border-color:{studyMode ? '#059669' : '#e2e8f0'};background:{studyMode ? '#ecfdf5' : '#ffffff'};"
+          >
+            <GraduationCap size={18} style="color:{studyMode ? '#047857' : '#94a3b8'};margin-top:2px;" />
+            <span>
+              <span class="block text-sm font-bold" style="color:{studyMode ? '#047857' : '#475569'};">Học</span>
+              <span class="block text-xs" style="color:#64748b;">Chọn xong thấy ngay đúng/sai và giải thích</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
       <!-- Xáo trộn -->
       <div class="space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest" style="color:#94a3b8;">Xáo trộn</p>
@@ -433,6 +464,7 @@
       timeLimit={mode === 'review' ? 0 : timeLimitSecs}
       shuffleQuestions={shuffleQ}
       shuffleOptions={shuffleOpts}
+      study={studyMode}
       {resume}
       onComplete={handleComplete}
     />
@@ -511,6 +543,11 @@
                 </p>
                 <p class="mt-0.5 text-xs" style="color:#64748b;">
                   Đúng: <span class="font-bold" style="color:#059669;">{ans.correctText.join('; ')}</span>
+                </p>
+              {/if}
+              {#if q.explanation}
+                <p class="mt-2 whitespace-pre-line rounded-xl px-3 py-2 text-xs leading-relaxed" style="background:rgba(255,255,255,0.7);color:#334155;">
+                  <span class="font-semibold">Giải thích:</span> {q.explanation}
                 </p>
               {/if}
             </div>

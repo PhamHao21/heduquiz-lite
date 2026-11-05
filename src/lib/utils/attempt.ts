@@ -4,7 +4,11 @@
 import { shuffle } from './shuffle';
 
 export interface Option   { label: string; text: string; is_correct: boolean }
-export interface Question { id: string; position: number; content: string; options: Option[]; multi: boolean }
+export interface Question {
+  id: string; position: number; content: string; options: Option[]; multi: boolean;
+  /** giải thích đáp án (nếu người tạo đề có viết) */
+  explanation?: string | null;
+}
 export interface Answer {
   question_id: string;
   /** nhãn gốc của đáp án (dùng để chấm điểm trên server) */
@@ -75,6 +79,12 @@ export function arrangeQuestions(
   return opts.shuffleOptions ? qs.map(q => ({ ...q, options: shuffle([...q.options]) })) : qs;
 }
 
+/** Câu trả lời có đúng không: phải chọn đủ và chỉ chọn các đáp án đúng. */
+export function isAnswerCorrect(q: Question, picked: string[]): boolean {
+  const correct = q.options.filter(o => o.is_correct).map(o => o.label);
+  return correct.length === picked.length && correct.every(l => picked.includes(l));
+}
+
 /** Chấm điểm tạm ở client để hiện kết quả ngay (server chấm lại khi lưu). */
 export function gradeAttempt(questions: Question[], chosen: Record<string, string[]>): Answer[] {
   return questions.map(q => {
@@ -88,7 +98,7 @@ export function gradeAttempt(questions: Question[], chosen: Record<string, strin
       question_id: q.id,
       chosen: picked,
       correct,
-      is_correct: correct.length === picked.length && correct.every(l => picked.includes(l)),
+      is_correct: isAnswerCorrect(q, picked),
       chosenText: describe(picked),
       correctText: describe(correct)
     };
@@ -105,6 +115,10 @@ export interface QuizProgress extends Arrangement {
   /** 'review' = lượt ôn câu sai */
   mode?: AttemptMode;
   sectionId: string | null;
+  /** chế độ Học: hiện đáp án ngay sau mỗi câu */
+  study?: boolean;
+  /** (chế độ Học) các câu đã hiện đáp án */
+  revealed?: Record<string, boolean>;
   chosen: Record<string, string[]>;
   current: number;
   startedAt: number;

@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
   const { data: questions } = await locals.supabase
     .from('questions')
-    .select('id, position, content, options, multi')
+    .select('id, position, content, options, multi, explanation')
     .eq('quiz_id', params.id)
     .order('position', { ascending: true });
 

@@ -11,6 +11,8 @@ export interface ParsedQuestion {
   content: string;
   options: ParsedOption[];
   multi: boolean;
+  /** giải thích đáp án (dòng bắt đầu bằng ">" hoặc "Giải thích:") */
+  explanation?: string;
   error?: ParseErrorCode;
 }
 
@@ -35,6 +37,9 @@ export type ParseErrorCode =
 // Nhãn đáp án: một chữ cái A–H theo sau là dấu chấm ("A. ...", "b. ...").
 // Giới hạn A–H để các dòng như "I. phát biểu..." trong đề không bị hiểu nhầm là đáp án.
 const OPTION_LABEL_RE = /^([A-Ha-h])\.\s*/;
+
+// Dòng giải thích: "> ..." hoặc "Giải thích: ..." (không phân biệt hoa thường, có/không dấu).
+const EXPLANATION_RE = /^(?:>\s*|(?:giải thích|giai thich)\s*:\s*)/i;
 
 function normaliseLine(raw: string): string {
   return raw.replace(/<br\s*\/>/gi, '\n').trim();
@@ -106,6 +111,8 @@ export function parseQuizText(raw: string): ParseResult {
     // Đáp án trước đó có nhãn rõ ràng ("A.") hay không — dùng để quyết định
     // một dòng không nhãn là đáp án mới hay là phần tiếp theo của đáp án trước.
     let lastOptionLabelled = false;
+    const explanationLines: string[] = [];
+    let parsingExplanation = false;
 
     block.lines.forEach((rawLine, lineIndex) => {
       const line = normaliseLine(rawLine);
@@ -117,6 +124,19 @@ export function parseQuizText(raw: string): ParseResult {
         contentLines.push(line);
         return;
       }
+
+      // Giải thích: từ dòng "> ..." trở đi, các dòng thường được nối vào phần giải thích.
+      if (EXPLANATION_RE.test(line)) {
+        parsingExplanation = true;
+        const text = line.replace(EXPLANATION_RE, '').trim();
+        if (text) explanationLines.push(text);
+        return;
+      }
+      if (parsingExplanation && !starred && !OPTION_LABEL_RE.test(line)) {
+        explanationLines.push(line);
+        return;
+      }
+      parsingExplanation = false;
 
       if (starred) {
         const isDouble = line.startsWith('**');
@@ -149,6 +169,8 @@ export function parseQuizText(raw: string): ParseResult {
     question.multi = markedMulti || question.options.filter(o => o.is_correct).length > 1;
 
     question.content = contentLines.join('\n').trim();
+    const explanation = explanationLines.join('\n').trim();
+    if (explanation) question.explanation = explanation;
     const errorCode = validateQuestion(question);
     if (errorCode) { question.error = errorCode; errors.push({ position, code: errorCode }); }
     section.questions.push(question);
@@ -168,5 +190,11 @@ export function parseQuizText(raw: string): ParseResult {
 export function toQuestionRows(questions: ParsedQuestion[]) {
   return questions
     .filter(q => !q.error)
-    .map((q, i) => ({ position: i + 1, content: q.content, options: q.options, multi: q.multi }));
+    .map((q, i) => ({
+      position: i + 1,
+      content: q.content,
+      options: q.options,
+      multi: q.multi,
+      explanation: q.explanation ?? null
+    }));
 }

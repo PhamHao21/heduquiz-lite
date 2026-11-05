@@ -9,6 +9,7 @@
 ### 📝 Tạo đề thủ công
 - Dán văn bản thô, parser tự nhận diện câu hỏi và đáp án
 - Hỗ trợ câu một đáp án và nhiều đáp án đúng
+- Thêm **giải thích** cho câu hỏi bằng dòng `> ...` (hoặc `Giải thích: ...`) đặt sau các đáp án
 - Preview realtime từng câu khi nhập
 - Phân chia đề thành nhiều **phần** (VD: 200 câu → 5 phần × 40 câu), đặt tên từng phần
 
@@ -23,6 +24,8 @@
 - Xem kết quả chi tiết từng câu sau khi nộp bài
 - **Tự lưu bài đang làm** — refresh hay lỡ đóng tab vẫn làm tiếp được (kể cả đồng hồ đếm giờ)
 - Cảnh báo khi nộp bài mà còn câu chưa làm
+- **Chế độ Học**: chọn xong thấy ngay đúng/sai kèm giải thích (câu nhiều đáp án bấm "Kiểm tra")
+- Phím tắt: `A–D`/`1–4` chọn đáp án, `← →` chuyển câu, `Enter` kiểm tra / câu tiếp
 
 ### 🔁 Ôn câu sai
 - Nộp bài xong bấm **Ôn lại N câu sai** để làm lại ngay các câu vừa sai
@@ -108,9 +111,10 @@ supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_fix_signup_and_play_count.sql
 supabase/migrations/003_save_quiz_and_server_grading.sql
 supabase/migrations/004_keep_question_ids_on_edit.sql
+supabase/migrations/005_save_explanations.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–004 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–005 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 

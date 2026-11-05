@@ -230,12 +230,13 @@
           <span><code class="rounded bg-white/20 px-1">**A.</code> nhiều đáp án</span>
           <span>Dòng trắng → câu mới</span>
           <span><code class="rounded bg-white/20 px-1">&lt;br /&gt;</code> xuống dòng</span>
+          <span><code class="rounded bg-white/20 px-1">&gt; ...</code> giải thích (sau đáp án)</span>
         </div>
       </div>
 
       <div class="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl">
         <textarea bind:value={quizRawText} spellcheck="false"
-          placeholder="Câu hỏi đầu tiên?\n*A. Đáp án đúng\nB. Đáp án sai\nC. Đáp án sai\nD. Đáp án sai\n\nCâu hỏi tiếp theo?..."
+          placeholder="Câu hỏi đầu tiên?\n*A. Đáp án đúng\nB. Đáp án sai\nC. Đáp án sai\nD. Đáp án sai\n> Giải thích (không bắt buộc)\n\nCâu hỏi tiếp theo?..."
           class="h-[520px] w-full resize-none bg-slate-50/50 p-6 font-mono text-sm text-slate-700 outline-none">
         </textarea>
       </div>
@@ -310,6 +311,12 @@
                   </div>
                 {/each}
               </div>
+
+              {#if currentQ.explanation}
+                <p class="mt-4 whitespace-pre-line rounded-2xl bg-amber-50 px-4 py-3 text-sm text-slate-700">
+                  <span class="font-bold text-amber-700">Giải thích:</span> {currentQ.explanation}
+                </p>
+              {/if}
             </div>
 
             <div class="mt-8 flex justify-between border-t border-slate-50 pt-5">

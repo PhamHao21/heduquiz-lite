@@ -101,3 +101,30 @@ describe('toQuestionRows', () => {
     expect(rows[0]).not.toHaveProperty('error');
   });
 });
+
+describe('giải thích đáp án', () => {
+  it('dòng ">" sau đáp án là giải thích', () => {
+    const q = parseQuizText('Thủ đô VN?\n*A. Hà Nội\nB. Huế\n> Hà Nội là thủ đô từ năm 1010.').questions[0];
+    expect(q.explanation).toBe('Hà Nội là thủ đô từ năm 1010.');
+    expect(q.options).toHaveLength(2);
+    expect(q.options[1].text).toBe('Huế');
+  });
+
+  it('"Giải thích:" (cả không dấu) và giải thích nhiều dòng', () => {
+    const a = parseQuizText('Q?\n*A. x\nB. y\nGiải thích: dòng 1\ndòng 2').questions[0];
+    expect(a.explanation).toBe('dòng 1\ndòng 2');
+    const b = parseQuizText('Q?\n*A. x\nB. y\ngiai thich: abc').questions[0];
+    expect(b.explanation).toBe('abc');
+  });
+
+  it('không có giải thích thì để trống; toQuestionRows trả về null', () => {
+    const r = parseQuizText('Q?\n*A. x\nB. y');
+    expect(r.questions[0].explanation).toBeUndefined();
+    expect(toQuestionRows(r.questions)[0].explanation).toBeNull();
+  });
+
+  it('giải thích được lưu kèm câu hỏi', () => {
+    const r = parseQuizText('Q?\n*A. x\nB. y\n> vì x');
+    expect(toQuestionRows(r.questions)[0].explanation).toBe('vì x');
+  });
+});

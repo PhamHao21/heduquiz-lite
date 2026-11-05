@@ -29,6 +29,7 @@ Requirements:
 - Exactly ${p.questionCount} questions
 - Difficulty: ${p.difficulty}${p.level ? ` (${p.level})` : ''}
 - Language: Vietnamese
+- After the options, add ONE line starting with "> " that briefly explains the correct answer
 - Output ONLY the quiz, no extra text, no markdown
 ${p.customPrompt ? `\nUser instructions: ${p.customPrompt}\n` : ''}
 FORMAT (blank line between questions):
@@ -37,6 +38,7 @@ Nội dung câu hỏi?
 B. Đáp án sai
 C. Đáp án sai
 D. Đáp án sai
+> Giải thích ngắn gọn (1–2 câu) vì sao đáp án đúng
 
 Generate now:`;
 }
@@ -52,6 +54,7 @@ Requirements:
 - Difficulty: ${p.difficulty}${p.level ? ` (${p.level})` : ''}
 ${p.subject ? `- Subject: ${p.subject}` : ''}
 - Language: Vietnamese
+- After the options, add ONE line starting with "> " that briefly explains the correct answer
 - Output ONLY the quiz, no extra text, no markdown
 ${p.customPrompt ? `\nUser instructions: ${p.customPrompt}\n` : ''}
 FORMAT (blank line between questions):
@@ -60,6 +63,7 @@ Nội dung câu hỏi?
 B. Đáp án sai
 C. Đáp án sai
 D. Đáp án sai
+> Giải thích ngắn gọn (1–2 câu) vì sao đáp án đúng
 
 Generate now:`;
 }

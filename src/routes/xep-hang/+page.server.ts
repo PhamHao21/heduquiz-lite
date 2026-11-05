@@ -12,11 +12,11 @@ export interface LeaderRow {
   extra: number;
 }
 
-const KINDS   = { 'on-thi': 'learners', 'tao-de': 'creators' } as const;
+const KINDS   = { 'on-thi': 'learners', 'tao-de': 'creators', 'theo-doi': 'followed' } as const;
 const PERIODS = { tuan: 'week', thang: 'month', 'tat-ca': 'all' } as const;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-  const kindParam   = url.searchParams.get('loai') === 'tao-de' ? 'tao-de' : 'on-thi';
+  const kindParam   = (['tao-de', 'theo-doi'] as const).find(k => k === url.searchParams.get('loai')) ?? 'on-thi';
   const periodParam = (['tuan', 'thang', 'tat-ca'] as const).find(p => p === url.searchParams.get('ky')) ?? 'tuan';
 
   const [{ user }, { data, error }] = await Promise.all([

@@ -1,6 +1,6 @@
 <!-- src/routes/xep-hang/+page.svelte -->
 <script lang="ts">
-  import { Trophy, Flame, PenLine, Medal } from 'lucide-svelte';
+  import { Trophy, Flame, PenLine, Medal, UserPlus } from 'lucide-svelte';
   import Avatar from '$lib/components/ui/Avatar.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
@@ -8,7 +8,8 @@
 
   const KIND_TABS = [
     { key: 'on-thi', label: 'Ôn thi chăm nhất', short: 'Ôn thi', icon: Flame },
-    { key: 'tao-de', label: 'Tạo đề nhiều nhất', short: 'Tạo đề', icon: PenLine }
+    { key: 'tao-de', label: 'Tạo đề nhiều nhất', short: 'Tạo đề', icon: PenLine },
+    { key: 'theo-doi', label: 'Được theo dõi', short: 'Theo dõi', icon: UserPlus }
   ] as const;
   const PERIOD_TABS = [
     { key: 'tuan', label: '7 ngày' },
@@ -18,6 +19,8 @@
 
   const hrefWith = (kind: string, period: string) => `/xep-hang?loai=${kind}&ky=${period}`;
   const isLearners = $derived(data.kind === 'on-thi');
+  const isFollowed = $derived(data.kind === 'theo-doi');
+  const unit = $derived(isLearners ? ['câu', 'lượt làm bài'] : isFollowed ? ['người theo dõi mới', 'tổng người theo dõi'] : ['đề', 'lượt ôn']);
   const myRow = $derived(data.myId ? data.rows.find(r => r.user_id === data.myId) : undefined);
   const podium = ['text-[#c99a06]', 'text-[#8a94a3]', 'text-[#b4682e]'];
 </script>
@@ -30,7 +33,7 @@
   <section class="rise-in">
     <h1 class="flex items-center gap-2.5 text-3xl font-extrabold tracking-tight"><Trophy size={28} class="text-accent" /> Bảng xếp hạng</h1>
     <p class="mt-1.5 text-muted">
-      {isLearners ? 'Xếp theo số câu đã làm (mỗi lần nộp bài khi đã đăng nhập).' : 'Xếp theo số đề công khai đã tạo, sau đó đến tổng lượt ôn.'}
+      {isLearners ? 'Xếp theo số câu đã làm (mỗi lần nộp bài khi đã đăng nhập).' : isFollowed ? 'Xếp theo số người theo dõi mới trong khoảng thời gian.' : 'Xếp theo số đề công khai đã tạo, sau đó đến tổng lượt ôn.'}
     </p>
   </section>
 
@@ -55,7 +58,7 @@
     </p>
   {:else if data.rows.length === 0}
     <EmptyState icon={Trophy} title="Chưa có ai trong bảng xếp hạng"
-      description={isLearners ? 'Đăng nhập và ôn một đề để ghi tên.' : 'Tạo một đề công khai để ghi tên.'} />
+      description={isLearners ? 'Đăng nhập và ôn một đề để ghi tên.' : isFollowed ? 'Chia sẻ đề hay để có thêm người theo dõi.' : 'Tạo một đề công khai để ghi tên.'} />
   {:else}
     {#if data.myId && !myRow}
       <p class="text-sm text-muted">Bạn chưa có tên trong top {data.rows.length}. {isLearners ? 'Ôn thêm vài đề nhé!' : 'Chia sẻ thêm đề công khai nhé!'}</p>
@@ -73,8 +76,8 @@
               {row.display_name}{#if mine}<span class="ml-1.5 text-xs font-bold text-accent">(bạn)</span>{/if}
             </span>
             <span class="shrink-0 text-right">
-              <span class="block font-bold tabular-nums">{row.score.toLocaleString('vi-VN')} {isLearners ? 'câu' : 'đề'}</span>
-              <span class="block text-xs text-muted">{row.extra.toLocaleString('vi-VN')} {isLearners ? 'lượt làm bài' : 'lượt ôn'}</span>
+              <span class="block font-bold tabular-nums">{row.score.toLocaleString('vi-VN')} {unit[0]}</span>
+              <span class="block text-xs text-muted">{row.extra.toLocaleString('vi-VN')} {unit[1]}</span>
             </span>
           </a>
         </li>

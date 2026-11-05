@@ -15,6 +15,8 @@ declare global {
         display_name: string | null;
         avatar_url: string | null;
       } | null;
+      /** số thông báo chưa đọc */
+      unread?: number;
     }
     // interface Error {}
     // interface Platform {}

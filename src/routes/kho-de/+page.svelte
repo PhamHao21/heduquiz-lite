@@ -1,8 +1,9 @@
 <!-- src/routes/kho-de/+page.svelte -->
 <script lang="ts">
   import {
-    FileText, Users, Repeat, Flame, Search, Plus, Globe, Lock, Pencil, Trash2, Compass, ArrowRight, History, Play
+    FileText, Users, Repeat, Flame, Search, Plus, Globe, Lock, Pencil, Trash2, Compass, ArrowRight, History, Play, Heart
   } from 'lucide-svelte';
+  import QuizTile from '$lib/components/quiz/QuizTile.svelte';
   import { page } from '$app/state';
   import { invalidateAll } from '$app/navigation';
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
@@ -23,6 +24,9 @@
   const toReview = $derived(data.progress.filter(p => p.needs_review > 0).slice(0, 5));
   const othersStudied = $derived(data.progress.filter(p => !p.is_owner).slice(0, 5));
   const name = $derived(page.data.profile?.display_name ?? page.data.profile?.username ?? 'bạn');
+
+  /** xem đề của mình hay các đề đã thả tim */
+  let view = $state<'mine' | 'liked'>('mine');
 
   type Visibility = 'all' | 'public' | 'private';
   type Sort = 'updated' | 'title' | 'plays';
@@ -138,13 +142,32 @@
     <!-- Đề của bạn -->
     <section class="min-w-0 space-y-4">
       <div class="flex flex-wrap items-center gap-2">
-        <h2 class="mr-auto text-lg font-bold">Đề của bạn</h2>
+        <div class="segmented mr-auto" role="tablist" aria-label="Danh sách đề">
+          <button role="tab" aria-selected={view === 'mine'} onclick={() => { view = 'mine'; }}><FileText size={14} /> Đề của bạn</button>
+          <button role="tab" aria-selected={view === 'liked'} onclick={() => { view = 'liked'; }}><Heart size={14} /> Đã thích <span class="text-faint">{data.liked.length}</span></button>
+        </div>
+        {#if view === 'mine'}
         <div class="segmented" role="group" aria-label="Lọc theo chế độ hiển thị">
           <button aria-pressed={visibility === 'all'} onclick={() => { visibility = 'all'; }}>Tất cả</button>
           <button aria-pressed={visibility === 'public'} onclick={() => { visibility = 'public'; }}>Công khai</button>
           <button aria-pressed={visibility === 'private'} onclick={() => { visibility = 'private'; }}>Riêng tư</button>
         </div>
+        {/if}
       </div>
+
+      {#if view === 'liked'}
+        {#if data.liked.length === 0}
+          <EmptyState icon={Heart} title="Chưa thả tim đề nào" description="Thả tim các đề hay để lưu lại và ôn sau.">
+            <a href="/kham-pha" class="btn btn-primary"><Compass size={16} /> Khám phá đề</a>
+          </EmptyState>
+        {:else}
+          <div class="grid gap-3 sm:grid-cols-2">
+            {#each data.liked as quiz (quiz.id)}
+              <QuizTile {quiz} liked />
+            {/each}
+          </div>
+        {/if}
+      {:else}
 
       {#if quizzes.length > 0}
         <div class="flex gap-2">
@@ -193,8 +216,9 @@
 
               <a href="/quiz/{q.id}" class="mt-3 line-clamp-2 flex-1 text-[15px] font-bold leading-snug hover:text-accent">{q.title}</a>
 
-              <p class="mt-3 text-xs text-muted">
+              <p class="mt-3 flex items-center gap-1 text-xs text-muted">
                 Cập nhật {formatDate(q.updated_at)} · {q.play_count} lượt ôn
+                {#if data.myLikeCounts[q.id]}<span class="ml-1 inline-flex items-center gap-0.5 text-heart"><Heart size={11} fill="currentColor" /> {data.myLikeCounts[q.id]}</span>{/if}
               </p>
               <p class="mt-1.5 min-h-5 text-xs font-semibold">
                 {#if prog && prog.needs_review > 0}
@@ -212,6 +236,7 @@
             </article>
           {/each}
         </div>
+      {/if}
       {/if}
     </section>
 

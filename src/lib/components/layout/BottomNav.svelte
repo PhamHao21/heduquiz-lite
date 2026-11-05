@@ -1,7 +1,7 @@
 <!-- src/lib/components/layout/BottomNav.svelte -->
 <!-- Thanh điều hướng dưới đáy màn hình trên điện thoại (giống ứng dụng). -->
 <script lang="ts">
-  import { LibraryBig, Compass, Trophy, Plus, UserRound, Home, LogIn } from 'lucide-svelte';
+  import { LibraryBig, Compass, Trophy, Plus, UserRound, Home, LogIn, Newspaper } from 'lucide-svelte';
   import { page } from '$app/state';
 
   const { onCreate }: { onCreate: () => void } = $props();
@@ -14,9 +14,9 @@
     profile
       ? [
           { href: '/kho-de', label: 'Kho đề', icon: LibraryBig },
-          { href: '/kham-pha', label: 'Khám phá', icon: Compass },
+          { href: '/bang-tin', label: 'Bảng tin', icon: Newspaper },
           null,
-          { href: '/xep-hang', label: 'Xếp hạng', icon: Trophy },
+          { href: '/kham-pha', label: 'Khám phá', icon: Compass },
           { href: `/u/${profile.username}`, label: 'Tôi', icon: UserRound }
         ]
       : [

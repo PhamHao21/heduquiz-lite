@@ -1,12 +1,14 @@
 <!-- src/routes/kham-pha/+page.svelte -->
 <script lang="ts">
-  import { Search, Flame, Sparkles, Compass, ArrowLeft, ArrowRight } from 'lucide-svelte';
+  import { Search, Flame, Sparkles, Compass, ArrowLeft, ArrowRight, Heart, Trophy, Users } from 'lucide-svelte';
+  import AuthorCard from '$lib/components/social/AuthorCard.svelte';
   import QuizTile from '$lib/components/quiz/QuizTile.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
   const { data } = $props();
 
   const totalPages = $derived(Math.max(1, Math.ceil(Number(data.total) / data.pageSize)));
+  const liked = $derived(new Set(data.liked));
 
   /** Link giữ nguyên các bộ lọc hiện tại, chỉ đổi những tham số truyền vào. */
   function hrefWith(changes: Record<string, string | number | null>) {
@@ -14,7 +16,7 @@
     const current: Record<string, string | number | null> = {
       q: data.q || null,
       mon: data.subject || null,
-      sort: data.sort === 'new' ? 'new' : null,
+      sort: data.sort === 'popular' ? null : data.sort,
       trang: null,
       ...changes
     };
@@ -33,12 +35,15 @@
 
 <div class="space-y-6">
   <section class="rise-in">
-    <h1 class="text-3xl font-extrabold tracking-tight">Khám phá đề thi</h1>
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <h1 class="text-3xl font-extrabold tracking-tight">Khám phá đề thi</h1>
+      <a href="/xep-hang" class="btn btn-ghost btn-sm"><Trophy size={15} /> Bảng xếp hạng</a>
+    </div>
     <p class="mt-1.5 text-muted">Đề công khai do mọi người tạo. Ôn ngay, không cần đăng nhập.</p>
 
     <form method="GET" action="/kham-pha" class="mt-5 flex gap-2" data-sveltekit-keepfocus>
       {#if data.subject}<input type="hidden" name="mon" value={data.subject} />{/if}
-      {#if data.sort === 'new'}<input type="hidden" name="sort" value="new" />{/if}
+      {#if data.sort !== 'popular'}<input type="hidden" name="sort" value={data.sort} />{/if}
       <label class="relative min-w-0 flex-1">
         <span class="sr-only">Tìm đề</span>
         <Search size={18} class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-faint" />
@@ -56,10 +61,22 @@
       {/each}
     </nav>
     <div class="segmented" role="group" aria-label="Sắp xếp">
-      <a href={hrefWith({ sort: null })} aria-current={data.sort !== 'new' ? 'true' : undefined}><Flame size={14} /> Phổ biến</a>
+      <a href={hrefWith({ sort: null })} aria-current={data.sort === 'popular' ? 'true' : undefined}><Flame size={14} /> Phổ biến</a>
+      <a href={hrefWith({ sort: 'liked' })} aria-current={data.sort === 'liked' ? 'true' : undefined}><Heart size={14} /> Nhiều tim</a>
       <a href={hrefWith({ sort: 'new' })} aria-current={data.sort === 'new' ? 'true' : undefined}><Sparkles size={14} /> Mới nhất</a>
     </div>
   </div>
+
+  {#if data.authors.length > 0}
+    <section>
+      <h2 class="mb-3 flex items-center gap-2 font-bold"><Users size={17} class="text-accent" /> Tác giả nổi bật</h2>
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {#each data.authors as author (author.id)}
+          <AuthorCard {author} />
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   {#if data.unavailable}
     <p class="rounded-xl bg-warning-soft px-5 py-4 text-sm text-warning">
@@ -78,7 +95,7 @@
     <p class="text-sm text-muted">{data.total} đề{data.q ? ` cho "${data.q}"` : ''}</p>
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each data.quizzes as quiz (quiz.id)}
-        <QuizTile {quiz} />
+        <QuizTile {quiz} liked={liked.has(quiz.id)} />
       {/each}
     </div>
 

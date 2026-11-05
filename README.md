@@ -37,10 +37,24 @@
 - Trang đề hiện **Câu cần ôn lại**: các câu sai ở lần làm gần nhất, kèm số lần sai (cần đăng nhập)
 - Ôn lại làm đúng thì câu tự rời khỏi danh sách; sửa đề không làm mất lịch sử của các câu giữ nguyên nội dung
 
+### 💬 Mạng xã hội
+- **Theo dõi tác giả**, xem danh sách người theo dõi / đang theo dõi
+- **Thả tim** đề hay (đề đã thả tim nằm ở tab **Đã thích** trong Kho đề)
+- **Bình luận** dưới mỗi đề (chủ đề xoá được mọi bình luận trong đề của mình)
+- **Bảng tin** (`/bang-tin`): đề mới của những người bạn theo dõi, kèm gợi ý tác giả
+- **Thông báo** (`/thong-bao`): có người theo dõi, thả tim, bình luận; chuông báo số chưa đọc
+- Trang cá nhân có **ảnh bìa**, số người theo dõi, tổng tim, lượt ôn
+- Mỗi đề có **ảnh bìa tự sinh** theo màu riêng
+
+### 🧠 Học thêm
+- **Thẻ ghi nhớ** (`/quiz/<id>/the-ghi-nho`): lật thẻ xem đáp án, đánh dấu đã nhớ / chưa nhớ, ôn lại thẻ chưa nhớ
+- **Lưu bản sao** đề công khai của người khác vào Kho đề để chỉnh sửa
+- **Pháo giấy** khi đạt từ 80%, **chia sẻ kết quả** qua tin nhắn
+
 ### 🌐 Chia sẻ, khám phá, xếp hạng
 - **Chia sẻ đề** bằng link (bảng chia sẻ của điện thoại hoặc copy link), thẻ xem trước khi gửi qua Zalo / Messenger
-- **Khám phá** (`/kham-pha`): tìm đề công khai (gõ không dấu được), lọc theo trình độ, sắp xếp phổ biến / mới nhất
-- **Xếp hạng** (`/xep-hang`): ôn thi chăm nhất / tạo đề nhiều nhất, theo 7 ngày, 30 ngày hoặc tất cả
+- **Khám phá** (`/kham-pha`): tìm đề công khai (gõ không dấu được), lọc theo trình độ, sắp xếp phổ biến / nhiều tim / mới nhất, tác giả nổi bật
+- **Xếp hạng** (`/xep-hang`): ôn thi chăm nhất / tạo đề nhiều nhất / được theo dõi nhiều, theo 7 ngày, 30 ngày hoặc tất cả
 - **Trang cá nhân** (`/u/<tên>`): hồ sơ và các đề công khai của mỗi người
 
 ### 🖨️ In và xuất đề
@@ -124,9 +138,10 @@ supabase/migrations/004_keep_question_ids_on_edit.sql
 supabase/migrations/005_save_explanations.sql
 supabase/migrations/006_my_quiz_progress.sql
 supabase/migrations/007_explore_and_leaderboard.sql
+supabase/migrations/008_social.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–007 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–008 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 
@@ -178,6 +193,7 @@ src/
 │   │   ├── layout/      # Header, BottomNav (điện thoại), Footer, CreateSheet, UserMenu
 │   │   ├── ui/          # ConfirmModal, Toaster, Avatar, EmptyState, ThemeToggle
 │   │   ├── quiz/        # QuizEngine, Timer, QuizTile
+│   │   ├── social/      # LikeButton, FollowButton, CommentSection, AuthorCard
 │   │   ├── dashboard/   # ActivityHeatmap
 │   │   └── landing/     # DemoQuestion
 │   ├── import/          # Đọc Word/PDF/TXT và chuẩn hoá về cú pháp đề
@@ -191,11 +207,13 @@ src/
 │   ├── quiz/[id]/       # Xem đề, ôn thi, kết quả; /in để in và xuất file
 │   ├── kham-pha/        # Đề công khai
 │   ├── xep-hang/        # Bảng xếp hạng
-│   ├── u/[username]/    # Trang cá nhân
+│   ├── u/[username]/    # Trang cá nhân (đề, người theo dõi, đang theo dõi)
+│   ├── bang-tin/        # Bảng tin từ người mình theo dõi
+│   ├── thong-bao/       # Thông báo
 │   ├── thiet-lap/       # Thiết lập tài khoản
 │   ├── auth/            # Đăng nhập
 │   └── api/             # Server endpoints
-supabase/migrations/     # 001 → 007, chạy lần lượt trong SQL Editor
+supabase/migrations/     # 001 → 008, chạy lần lượt trong SQL Editor
 ```
 
 ---

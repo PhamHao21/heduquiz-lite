@@ -40,6 +40,8 @@
   --danger-soft: #fdebeb;
   --warning: #9a5b00;
   --warning-soft: #fff2db;
+  --heart: #d1435f;
+  --heart-soft: #fde8ec;
 
   --shadow-color: 220 30% 20%;
   color-scheme: light;
@@ -67,6 +69,8 @@
   --danger-soft: #331517;
   --warning: #f5b544;
   --warning-soft: #2e2210;
+  --heart: #ff7d95;
+  --heart-soft: #3a1820;
 
   --shadow-color: 220 40% 2%;
   color-scheme: dark;
@@ -95,6 +99,8 @@
   --color-danger-soft: var(--danger-soft);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-heart: var(--heart);
+  --color-heart-soft: var(--heart-soft);
 }
 
 @layer base {
@@ -178,10 +184,12 @@
 
   /* Nhóm nút chọn một (segmented control) */
   .segmented {
-    @apply inline-flex rounded-xl bg-sunken p-1;
+    @apply inline-flex max-w-full overflow-x-auto rounded-xl bg-sunken p-1;
+    scrollbar-width: none;
   }
+  .segmented::-webkit-scrollbar { display: none; }
   .segmented > * {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-muted transition;
+    @apply inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-semibold text-muted transition;
   }
   .segmented > *:hover { @apply text-ink; }
   .segmented > [aria-current="true"],

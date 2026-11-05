@@ -3,6 +3,7 @@
   import { ArrowRight, FileUp, GraduationCap, Repeat, Share2, Trophy, ClipboardPaste, Target } from 'lucide-svelte';
   import DemoQuestion from '$lib/components/landing/DemoQuestion.svelte';
   import QuizTile from '$lib/components/quiz/QuizTile.svelte';
+  import AuthorCard from '$lib/components/social/AuthorCard.svelte';
 
   const { data } = $props();
 
@@ -80,8 +81,8 @@
     <div class="card flex flex-col justify-between gap-6 p-6 md:col-span-2 md:flex-row md:items-end">
       <div>
         <Trophy size={24} class="text-accent" />
-        <p class="mt-6 font-bold">Bảng xếp hạng và chuỗi ngày ôn</p>
-        <p class="mt-1.5 max-w-md text-sm leading-relaxed text-muted">Theo dõi số câu đã làm mỗi tuần, giữ chuỗi ngày học đều đặn cùng bạn bè.</p>
+        <p class="mt-6 font-bold">Cộng đồng cùng ôn thi</p>
+        <p class="mt-1.5 max-w-md text-sm leading-relaxed text-muted">Theo dõi tác giả, thả tim đề hay, bình luận, giữ chuỗi ngày học và leo bảng xếp hạng cùng bạn bè.</p>
       </div>
       <a href="/xep-hang" class="btn btn-secondary shrink-0">Xem bảng xếp hạng</a>
     </div>
@@ -100,6 +101,18 @@
     <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each data.popular as quiz (quiz.id)}
         <QuizTile {quiz} />
+      {/each}
+    </div>
+  </section>
+{/if}
+
+{#if data.authors.length > 0}
+  <section class="mt-24">
+    <h2 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Tác giả được theo dõi nhiều</h2>
+    <p class="mt-2 text-muted">Theo dõi để thấy đề mới của họ trong bảng tin.</p>
+    <div class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {#each data.authors as author (author.id)}
+        <AuthorCard {author} />
       {/each}
     </div>
   </section>

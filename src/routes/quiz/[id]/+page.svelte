@@ -4,12 +4,21 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
+  import QuizCover from '$lib/components/quiz/QuizCover.svelte';
+  import LikeButton from '$lib/components/social/LikeButton.svelte';
+  import FollowButton from '$lib/components/social/FollowButton.svelte';
+  import CommentSection from '$lib/components/social/CommentSection.svelte';
+  import { goto } from '$app/navigation';
+  import { saveQuiz } from '$lib/supabase/saveQuiz';
+  import { quizToText } from '$lib/utils/exportText';
+  import type { ParsedQuestion } from '$lib/utils/parser';
   import Avatar from '$lib/components/ui/Avatar.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import { answeredCount, clearProgress, loadProgress, type Answer, type AttemptMode, type QuizProgress } from '$lib/utils/attempt';
   import {
     Play, PlayCircle, RotateCcw, Pencil, Share2, Copy, Check, Lock, Globe, Printer, Repeat, GraduationCap,
-    FileCheck, Shuffle, Timer as TimerIcon, ListChecks, Users, ArrowLeft, CheckCircle2, XCircle, MinusCircle, LibraryBig
+    FileCheck, Shuffle, Timer as TimerIcon, ListChecks, Users, ArrowLeft, CheckCircle2, XCircle, MinusCircle, LibraryBig,
+    Layers, CopyPlus
   } from 'lucide-svelte';
 
   const { data } = $props();
@@ -20,6 +29,39 @@
   const isOwner   = $derived(data.isOwner);
   const review    = $derived(data.review);
   const owner     = $derived(data.owner);
+  const social    = $derived(data.social);
+
+  // ── Lưu bản sao đề của người khác vào Kho đề của mình ──
+  let cloning = $state(false);
+  async function cloneQuiz() {
+    if (!page.data.profile) { goto(`/auth?next=${encodeURIComponent(`/quiz/${quiz.id}`)}`); return; }
+    cloning = true;
+    try {
+      type Row = { content: string; options: { label: string; text: string; is_correct: boolean }[]; multi: boolean; explanation: string | null };
+      const rows = questions as Row[];
+      const parsed: ParsedQuestion[] = rows.map((q, i) => ({
+        position: i + 1,
+        content: q.content,
+        options: q.options.map(o => ({ label: o.label, text: o.text, is_correct: o.is_correct })),
+        multi: q.multi,
+        explanation: q.explanation ?? undefined
+      }));
+      const id = await saveQuiz({
+        title: `${quiz.title} (bản sao)`.slice(0, 200),
+        subject: quiz.subject,
+        rawText: quizToText(rows),
+        isPublic: false,
+        sections: (quiz.sections as unknown[] | null) ?? null,
+        questions: parsed
+      });
+      toast.success('Đã lưu bản sao vào Kho đề của bạn');
+      await goto(`/tao-de?edit=${id}`);
+    } catch (e) {
+      toast.error(`Không lưu được bản sao: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      cloning = false;
+    }
+  }
 
   type Phase   = 'intro' | 'options' | 'playing' | 'result';
   type SaveState = 'idle' | 'saving' | 'saved' | 'guest' | 'error';
@@ -102,6 +144,7 @@
     saveState = 'saving';
     saveMessage = '';
     window.scrollTo({ top: 0 });
+    celebrate(answers);
 
     // Server chấm lại từ đáp án đúng trong DB, tăng lượt ôn, lưu lịch sử nếu đã đăng nhập.
     try {
@@ -121,6 +164,31 @@
     } catch (e) {
       saveState = 'error';
       saveMessage = e instanceof Error ? e.message : 'Lỗi không xác định';
+    }
+  }
+
+  /** Pháo giấy khi đạt từ 80% (bỏ qua nếu người dùng bật giảm chuyển động) */
+  async function celebrate(answers: Answer[]) {
+    const ratio = answers.length ? answers.filter(a => a.is_correct).length / answers.length : 0;
+    if (ratio < 0.8 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const { default: confetti } = await import('canvas-confetti');
+    const colors = ['#2446e8', '#5c7cff', '#f26a1b', '#3fcf8e', '#f5b544'];
+    confetti({ particleCount: 90, spread: 70, origin: { y: 0.35 }, colors, disableForReducedMotion: true });
+    setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.3 }, colors, disableForReducedMotion: true }), 250);
+  }
+
+  /** Chia sẻ kết quả (bảng chia sẻ của điện thoại, hoặc copy đoạn văn) */
+  async function shareResult() {
+    if (!resultData) return;
+    const text = `Mình vừa đạt ${score}/${resultData.answers.length} câu (${pct}%) đề "${quiz.title}" trên HeduQuiz. Thử sức nhé: ${shareUrl}`;
+    if ('share' in navigator && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title: quiz.title, text }); return; } catch { /* huỷ → copy */ }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Đã copy kết quả, dán vào tin nhắn để khoe nhé');
+    } catch {
+      toast.error('Trình duyệt không cho copy, hãy thử lại');
     }
   }
 
@@ -283,7 +351,9 @@
 <!-- ═════════════ GIỚI THIỆU ═════════════ -->
 {#if phase === 'intro'}
   <div class="mx-auto max-w-3xl space-y-5">
-    <section class="card rise-in p-6 sm:p-8">
+    <section class="card rise-in overflow-hidden">
+      <QuizCover id={quiz.id} title={quiz.title} class="h-28 sm:h-36" />
+      <div class="p-6 sm:p-8">
       <div class="flex flex-wrap items-center gap-2">
         {#if quiz.subject}<span class="tag">{quiz.subject}</span>{/if}
         {#if isOwner}
@@ -295,16 +365,21 @@
       <h1 class="mt-3 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{quiz.title}</h1>
       {#if quiz.description}<p class="mt-2 text-muted">{quiz.description}</p>{/if}
 
-      <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
+      <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted">
         <span class="inline-flex items-center gap-1.5"><ListChecks size={16} /> {total} câu hỏi</span>
         <span class="inline-flex items-center gap-1.5"><Users size={16} /> {quiz.play_count} lượt ôn</span>
-        {#if owner}
-          <a href="/u/{owner.username}" class="inline-flex items-center gap-2 hover:text-ink">
-            <Avatar name={owner.display_name ?? owner.username} src={owner.avatar_url} size={22} />
-            {owner.display_name ?? owner.username}
-          </a>
-        {/if}
       </div>
+
+      {#if owner}
+        <div class="mt-5 flex items-center gap-3 rounded-xl bg-sunken px-4 py-3">
+          <a href="/u/{owner.username}"><Avatar name={owner.display_name ?? owner.username} src={owner.avatar_url} size={40} /></a>
+          <a href="/u/{owner.username}" class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-bold hover:underline">{owner.display_name ?? owner.username}</span>
+            <span class="block truncate text-xs text-muted">@{owner.username}</span>
+          </a>
+          {#if !isOwner && social.available}<FollowButton userId={quiz.owner_id} following={social.followingOwner} size="sm" />{/if}
+        </div>
+      {/if}
 
       {#if savedProgress}
         <div class="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-accent/30 bg-accent-soft p-4">
@@ -330,10 +405,17 @@
         <button onclick={() => { phase = 'options'; }} disabled={total === 0} class="btn btn-primary btn-lg flex-1 sm:flex-none">
           <Play size={18} /> Bắt đầu ôn thi
         </button>
+        {#if social.available}<LikeButton quizId={quiz.id} count={social.likeCount} liked={social.liked} />{/if}
         <button onclick={openShare} class="btn btn-secondary btn-lg btn-icon" aria-label="Chia sẻ đề" title="Chia sẻ đề" aria-expanded={shareOpen}><Share2 size={18} /></button>
-        <a href="/quiz/{quiz.id}/in" class="btn btn-secondary btn-lg btn-icon" aria-label="In đề hoặc lưu PDF" title="In đề / lưu PDF"><Printer size={18} /></a>
         {#if isOwner}
           <a href="/tao-de?edit={quiz.id}" class="btn btn-secondary btn-lg btn-icon" aria-label="Sửa đề" title="Sửa đề"><Pencil size={18} /></a>
+        {/if}
+      </div>
+      <div class="mt-3 flex flex-wrap gap-x-1 gap-y-1">
+        <a href="/quiz/{quiz.id}/the-ghi-nho" class="btn btn-ghost btn-sm" class:pointer-events-none={total === 0}><Layers size={15} /> Thẻ ghi nhớ</a>
+        <a href="/quiz/{quiz.id}/in" class="btn btn-ghost btn-sm"><Printer size={15} /> In / PDF</a>
+        {#if !isOwner}
+          <button onclick={cloneQuiz} disabled={cloning || total === 0} class="btn btn-ghost btn-sm"><CopyPlus size={15} /> {cloning ? 'Đang lưu…' : 'Lưu bản sao'}</button>
         {/if}
       </div>
       {#if total === 0}<p class="mt-3 text-sm text-warning">Đề này chưa có câu hỏi nào.</p>{/if}
@@ -365,6 +447,7 @@
           {/if}
         </div>
       {/if}
+      </div>
     </section>
 
     {#if needsReview.length > 0}
@@ -413,6 +496,10 @@
           {/each}
         </ul>
       </section>
+    {/if}
+
+    {#if social.available}
+      <CommentSection quizId={quiz.id} quizOwnerId={quiz.owner_id} comments={social.comments} />
     {/if}
   </div>
 
@@ -572,6 +659,9 @@
         <button onclick={() => { resultData = null; mode = 'normal'; reviewIds = []; phase = 'options'; }} class="btn btn-secondary">
           <RotateCcw size={16} /> Làm lại
         </button>
+        {#if quiz.is_public}
+          <button onclick={shareResult} class="btn btn-secondary"><Share2 size={16} /> Chia sẻ kết quả</button>
+        {/if}
         <a href={page.data.profile ? '/kho-de' : '/kham-pha'} class="btn btn-ghost">
           <LibraryBig size={16} /> {page.data.profile ? 'Về Kho đề' : 'Đề khác'}
         </a>

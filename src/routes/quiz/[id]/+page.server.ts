@@ -2,6 +2,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { summariseReview, type ReviewSummary } from '$lib/utils/review';
+import { followingIds, likeCounts, likedIds } from '$lib/server/social';
+import type { CommentItem } from '$lib/supabase/social';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
   const { session } = await locals.safeGetSession();
@@ -56,7 +58,28 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     review = summariseReview(attempts, (questions ?? []).map(q => q.id));
   }
 
+  // Mạng xã hội (migration 008): số tim, đã thả tim chưa, đang theo dõi tác giả chưa, bình luận.
+  // Lỗi (chưa chạy migration) thì bỏ qua để trang đề vẫn hoạt động.
+  const [likes, liked, followed, commentsRes] = await Promise.all([
+    likeCounts(locals.supabase, [quiz.id]),
+    likedIds(locals.supabase, session?.user.id, [quiz.id]),
+    followingIds(locals.supabase, session?.user.id, [quiz.owner_id]),
+    locals.supabase
+      .from('quiz_comments')
+      .select('id, content, created_at, user_id, author:profiles(username, display_name, avatar_url)')
+      .eq('quiz_id', quiz.id)
+      .order('created_at', { ascending: false })
+      .limit(100)
+  ]);
+
   return {
+    social: {
+      likeCount: likes[quiz.id] ?? 0,
+      liked: liked.includes(quiz.id),
+      followingOwner: followed.includes(quiz.owner_id),
+      comments: (commentsRes.error ? [] : commentsRes.data ?? []) as unknown as CommentItem[],
+      available: !commentsRes.error
+    },
     quiz,
     questions: questions ?? [],
     history,

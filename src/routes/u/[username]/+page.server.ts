@@ -1,17 +1,27 @@
 // src/routes/u/[username]/+page.server.ts
-// Trang cá nhân công khai: thông tin người dùng + các đề công khai của họ.
+// Trang cá nhân công khai: hồ sơ, đề công khai, người theo dõi / đang theo dõi.
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { followingIds, likeCounts, likedIds } from '$lib/server/social';
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export type ProfileTab = 'de' | 'nguoi-theo-doi' | 'dang-theo-doi';
+
+export interface PersonRow {
+  id: string; username: string; display_name: string | null; avatar_url: string | null;
+  bio: string | null; follower_count?: number;
+}
+
+export const load: PageServerLoad = async ({ locals, params, url }) => {
   const { user } = await locals.safeGetSession();
+  const tabParam = url.searchParams.get('tab');
+  const tab: ProfileTab = tabParam === 'nguoi-theo-doi' || tabParam === 'dang-theo-doi' ? tabParam : 'de';
 
+  // select('*') để vẫn chạy khi database chưa có cột follower_count (migration 008)
   const { data: profile } = await locals.supabase
     .from('profiles')
-    .select('id, username, display_name, avatar_url, bio, created_at')
+    .select('*')
     .eq('username', params.username)
     .maybeSingle();
-
   if (!profile) throw error(404, 'Không tìm thấy người dùng này');
 
   const { data: rows } = await locals.supabase
@@ -19,8 +29,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     .select('id, title, subject, play_count, created_at, questions(count)')
     .eq('owner_id', profile.id)
     .eq('is_public', true)
-    .order('play_count', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(100);
+
+  const ids = (rows ?? []).map(r => r.id as string);
+  const [likes, liked, followingMe] = await Promise.all([
+    likeCounts(locals.supabase, ids),
+    likedIds(locals.supabase, user?.id, ids),
+    followingIds(locals.supabase, user?.id, [profile.id])
+  ]);
 
   const quizzes = (rows ?? []).map(r => {
     const counted = (r as { questions?: { count: number }[] }).questions;
@@ -30,14 +47,38 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       subject: r.subject as string | null,
       play_count: r.play_count as number,
       created_at: r.created_at as string,
+      like_count: likes[r.id as string] ?? 0,
       question_count: Array.isArray(counted) ? (counted[0]?.count ?? 0) : null
     };
   });
 
+  // Danh sách người theo dõi / đang theo dõi (chỉ tải khi mở tab đó)
+  let people: PersonRow[] = [];
+  if (tab !== 'de') {
+    const isFollowers = tab === 'nguoi-theo-doi';
+    const { data } = await locals.supabase
+      .from('follows')
+      .select(isFollowers
+        ? 'created_at, person:profiles!follows_follower_id_fkey(*)'
+        : 'created_at, person:profiles!follows_following_id_fkey(*)')
+      .eq(isFollowers ? 'following_id' : 'follower_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    people = ((data ?? []) as unknown as { person: PersonRow | null }[]).map(r => r.person).filter((p): p is PersonRow => !!p);
+  }
+  const peopleFollowed = await followingIds(locals.supabase, user?.id, people.map(p => p.id));
+
   return {
-    profile,
+    // Đặt tên "person" (không phải "profile") để không đè lên page.data.profile = người đang đăng nhập
+    person: profile as PersonRow & { created_at: string; follower_count?: number; following_count?: number },
     quizzes,
+    liked,
+    tab,
+    people,
+    peopleFollowed,
+    isFollowing: followingMe.includes(profile.id),
     totalPlays: quizzes.reduce((sum, q) => sum + (q.play_count ?? 0), 0),
+    totalLikes: quizzes.reduce((sum, q) => sum + q.like_count, 0),
     isMe: user?.id === profile.id
   };
 };

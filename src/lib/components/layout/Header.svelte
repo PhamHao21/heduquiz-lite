@@ -5,6 +5,7 @@
   import Logo from './Logo.svelte';
   import UserMenu from './UserMenu.svelte';
   import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+  import NotificationBell from './NotificationBell.svelte';
 
   const { onCreate }: { onCreate: () => void } = $props();
 
@@ -13,7 +14,7 @@
   const path = $derived(page.url.pathname);
 
   const links = $derived([
-    ...(profile ? [{ href: '/kho-de', label: 'Kho đề' }] : []),
+    ...(profile ? [{ href: '/kho-de', label: 'Kho đề' }, { href: '/bang-tin', label: 'Bảng tin' }] : []),
     { href: '/kham-pha', label: 'Khám phá' },
     { href: '/xep-hang', label: 'Xếp hạng' }
   ]);
@@ -37,6 +38,7 @@
     <div class="ml-auto flex items-center gap-1.5">
       <ThemeToggle />
       {#if profile}
+        <NotificationBell />
         <button class="btn btn-primary btn-sm hidden sm:inline-flex" onclick={onCreate}>
           <Plus size={16} strokeWidth={2.5} /> Tạo đề
         </button>

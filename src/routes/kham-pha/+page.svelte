@@ -1,6 +1,8 @@
 <!-- src/routes/kham-pha/+page.svelte -->
 <script lang="ts">
-  import { Compass, Search, BookOpen, ListChecks, Flame, Sparkles } from 'lucide-svelte';
+  import { Search, Flame, Sparkles, Compass, ArrowLeft, ArrowRight } from 'lucide-svelte';
+  import QuizTile from '$lib/components/quiz/QuizTile.svelte';
+  import EmptyState from '$lib/components/ui/EmptyState.svelte';
 
   const { data } = $props();
 
@@ -22,108 +24,72 @@
     const qs = params.toString();
     return qs ? `/kham-pha?${qs}` : '/kham-pha';
   }
-
-  const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-xs font-bold transition ${active ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-200'}`;
 </script>
 
 <svelte:head>
-  <title>Khám phá đề thi — HeduQuiz</title>
+  <title>Khám phá đề thi · HeduQuiz</title>
   <meta name="description" content="Kho đề trắc nghiệm công khai trên HeduQuiz: tìm và ôn thi miễn phí, không cần đăng nhập." />
 </svelte:head>
 
-<div class="mx-auto max-w-5xl space-y-6" style="color:#1e293b;">
-  <div class="rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-violet-700 p-7 text-white shadow-xl shadow-indigo-100">
-    <h1 class="flex items-center gap-2 text-2xl font-black uppercase tracking-tight"><Compass size={24} /> Khám phá đề thi</h1>
-    <p class="mt-1 text-sm text-indigo-100">Đề công khai do mọi người tạo — ôn ngay, không cần đăng nhập.</p>
+<div class="space-y-6">
+  <section class="rise-in">
+    <h1 class="text-3xl font-extrabold tracking-tight">Khám phá đề thi</h1>
+    <p class="mt-1.5 text-muted">Đề công khai do mọi người tạo. Ôn ngay, không cần đăng nhập.</p>
 
     <form method="GET" action="/kham-pha" class="mt-5 flex gap-2" data-sveltekit-keepfocus>
       {#if data.subject}<input type="hidden" name="mon" value={data.subject} />{/if}
       {#if data.sort === 'new'}<input type="hidden" name="sort" value="new" />{/if}
-      <div class="relative min-w-0 flex-1">
-        <Search size={16} class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          name="q"
-          value={data.q}
-          placeholder="Tìm theo tên đề, môn… (gõ không dấu cũng được)"
-          class="w-full rounded-2xl border-0 py-3 pl-10 pr-4 text-sm font-medium outline-none"
-          style="background:#ffffff;color:#1e293b;"
-        />
-      </div>
-      <button class="shrink-0 rounded-2xl bg-white/15 px-5 py-3 text-sm font-black uppercase tracking-wider text-white hover:bg-white/25">
-        Tìm
-      </button>
+      <label class="relative min-w-0 flex-1">
+        <span class="sr-only">Tìm đề</span>
+        <Search size={18} class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-faint" />
+        <input type="search" name="q" value={data.q} placeholder="Tìm theo tên đề, môn học (gõ không dấu cũng được)" class="input py-3 pl-11 text-[15px]" />
+      </label>
+      <button class="btn btn-primary btn-lg">Tìm</button>
     </form>
-  </div>
+  </section>
 
-  <!-- Bộ lọc -->
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <div class="flex flex-wrap gap-2">
-      <a href={hrefWith({ mon: null })} class={chip(!data.subject)}>Tất cả</a>
+    <nav class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Lọc theo trình độ">
+      <a href={hrefWith({ mon: null })} class="chip shrink-0 {!data.subject ? 'chip-active' : ''}" aria-current={!data.subject ? 'true' : undefined}>Tất cả</a>
       {#each data.subjects as s (s)}
-        <a href={hrefWith({ mon: s })} class={chip(data.subject === s)}>{s}</a>
+        <a href={hrefWith({ mon: s })} class="chip shrink-0 {data.subject === s ? 'chip-active' : ''}" aria-current={data.subject === s ? 'true' : undefined}>{s}</a>
       {/each}
-    </div>
-    <div class="flex gap-2">
-      <a href={hrefWith({ sort: null })} class="{chip(data.sort !== 'new')} inline-flex items-center gap-1"><Flame size={13} /> Phổ biến</a>
-      <a href={hrefWith({ sort: 'new' })} class="{chip(data.sort === 'new')} inline-flex items-center gap-1"><Sparkles size={13} /> Mới nhất</a>
+    </nav>
+    <div class="segmented" role="group" aria-label="Sắp xếp">
+      <a href={hrefWith({ sort: null })} aria-current={data.sort !== 'new' ? 'true' : undefined}><Flame size={14} /> Phổ biến</a>
+      <a href={hrefWith({ sort: 'new' })} aria-current={data.sort === 'new' ? 'true' : undefined}><Sparkles size={14} /> Mới nhất</a>
     </div>
   </div>
 
   {#if data.unavailable}
-    <p class="rounded-2xl px-5 py-4 text-sm" style="background:#fffbeb;color:#b45309;">
+    <p class="rounded-xl bg-warning-soft px-5 py-4 text-sm text-warning">
       Trang Khám phá chưa sẵn sàng: database chưa được cập nhật (migration 007).
     </p>
   {:else if data.quizzes.length === 0}
-    <div class="rounded-[2rem] border-4 border-dashed border-slate-200 py-16 text-center" style="color:#94a3b8;">
-      {#if data.q || data.subject}
-        Không tìm thấy đề nào{data.q ? ` khớp với "${data.q}"` : ''}{data.subject ? ` trong mục ${data.subject}` : ''}.
-        <a href="/kham-pha" class="ml-1 font-bold text-indigo-600 hover:underline">Xem tất cả</a>
-      {:else}
-        Chưa có đề công khai nào. Hãy là người đầu tiên chia sẻ đề của bạn!
-      {/if}
-    </div>
+    {#if data.q || data.subject}
+      <EmptyState icon={Search} title="Không tìm thấy đề nào"
+        description={`${data.q ? `Không có đề khớp với "${data.q}"` : 'Chưa có đề'}${data.subject ? ` trong mục ${data.subject}` : ''}.`}>
+        <a href="/kham-pha" class="btn btn-secondary">Xem tất cả đề</a>
+      </EmptyState>
+    {:else}
+      <EmptyState icon={Compass} title="Chưa có đề công khai nào" description="Hãy là người đầu tiên chia sẻ đề của bạn." />
+    {/if}
   {:else}
-    <p class="px-1 text-xs font-bold" style="color:#94a3b8;">{data.total} đề{data.q ? ` cho "${data.q}"` : ''}</p>
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <p class="text-sm text-muted">{data.total} đề{data.q ? ` cho "${data.q}"` : ''}</p>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each data.quizzes as quiz (quiz.id)}
-        <a href="/quiz/{quiz.id}"
-          class="group flex flex-col rounded-[2rem] border p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
-          style="background:#ffffff;border-color:#f1f5f9;">
-          {#if quiz.subject}
-            <span class="mb-3 self-start rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide" style="background:#eef2ff;color:#4338ca;">
-              {quiz.subject}
-            </span>
-          {/if}
-          <h2 class="line-clamp-2 flex-1 text-base font-black leading-snug" style="color:#0f172a;">{quiz.title}</h2>
-          <p class="mt-3 flex items-center gap-3 text-[11px] font-bold" style="color:#94a3b8;">
-            <span class="flex items-center gap-1"><ListChecks size={12} /> {quiz.question_count} câu</span>
-            <span class="flex items-center gap-1"><BookOpen size={12} /> {quiz.play_count} lượt ôn</span>
-          </p>
-          <div class="mt-3 flex items-center gap-2 border-t pt-3" style="border-color:#f1f5f9;">
-            {#if quiz.owner_avatar}
-              <img src={quiz.owner_avatar} alt="" class="h-6 w-6 rounded-full object-cover" referrerpolicy="no-referrer" />
-            {:else}
-              <span class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black" style="background:#eef2ff;color:#4338ca;">
-                {quiz.owner_name[0]?.toUpperCase()}
-              </span>
-            {/if}
-            <span class="truncate text-xs font-bold" style="color:#64748b;">{quiz.owner_name}</span>
-            <span class="ml-auto shrink-0 text-[10px] font-black uppercase tracking-widest text-indigo-600 opacity-0 transition group-hover:opacity-100">Ôn ngay →</span>
-          </div>
-        </a>
+        <QuizTile {quiz} />
       {/each}
     </div>
 
     {#if totalPages > 1}
-      <nav class="flex items-center justify-center gap-3 pt-2" aria-label="Phân trang">
+      <nav class="flex items-center justify-center gap-3 pt-4" aria-label="Phân trang">
         {#if data.page > 1}
-          <a href={hrefWith({ trang: data.page - 1 })} class={chip(false)}>← Trước</a>
+          <a href={hrefWith({ trang: data.page - 1 })} class="btn btn-secondary btn-sm"><ArrowLeft size={15} /> Trước</a>
         {/if}
-        <span class="text-xs font-bold" style="color:#64748b;">Trang {data.page} / {totalPages}</span>
+        <span class="text-sm font-medium text-muted">Trang {data.page} / {totalPages}</span>
         {#if data.page < totalPages}
-          <a href={hrefWith({ trang: data.page + 1 })} class={chip(false)}>Sau →</a>
+          <a href={hrefWith({ trang: data.page + 1 })} class="btn btn-secondary btn-sm">Sau <ArrowRight size={15} /></a>
         {/if}
       </nav>
     {/if}

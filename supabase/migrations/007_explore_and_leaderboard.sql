@@ -6,6 +6,8 @@ create extension if not exists unaccent with schema extensions;
 
 -- ── 1. explore_quizzes: danh sách đề công khai có tìm kiếm / lọc / sắp xếp / phân trang ──
 -- Chạy với quyền người gọi (kể cả khách chưa đăng nhập); chỉ trả về đề công khai có câu hỏi.
+-- (drop trước để chạy lại được khi kiểu trả về thay đổi giữa các phiên bản file này)
+drop function if exists public.explore_quizzes(text, text, text, integer, integer);
 create or replace function public.explore_quizzes(
   p_search  text    default null,
   p_subject text    default null,
@@ -24,6 +26,7 @@ returns table (
   owner_id       uuid,
   owner_name     text,
   owner_avatar   text,
+  owner_username text,
   total_count    bigint
 )
 language sql
@@ -57,6 +60,7 @@ as $$
          f.owner_id,
          coalesce(nullif(p.display_name, ''), p.username),
          p.avatar_url,
+         p.username,
          count(*) over ()
     from filtered f
     join public.profiles p on p.id = f.owner_id
@@ -73,6 +77,7 @@ grant execute on function public.explore_quizzes(text, text, text, integer, inte
 -- 'learners': số câu đã làm (tổng các lượt nộp bài) + số lượt; 'creators': số đề công khai + tổng lượt ôn.
 -- security definer vì phải đếm kết quả của mọi người (RLS chỉ cho xem kết quả của mình),
 -- nhưng chỉ trả về tên hiển thị, ảnh đại diện và các con số tổng — không lộ điểm hay bài làm.
+drop function if exists public.leaderboard(text, text, integer);
 create or replace function public.leaderboard(
   p_kind   text    default 'learners',   -- 'learners' | 'creators'
   p_period text    default 'week',       -- 'week' | 'month' | 'all'
@@ -83,6 +88,7 @@ returns table (
   user_id      uuid,
   display_name text,
   avatar_url   text,
+  username     text,
   score        bigint,   -- learners: số câu đã làm · creators: số đề công khai
   extra        bigint    -- learners: số lượt làm bài · creators: tổng lượt ôn các đề
 )
@@ -110,7 +116,7 @@ begin
          group by q.owner_id
       )
       select rank() over (order by s.quizzes desc, s.plays desc),
-             p.id, coalesce(nullif(p.display_name, ''), p.username), p.avatar_url,
+             p.id, coalesce(nullif(p.display_name, ''), p.username), p.avatar_url, p.username,
              s.quizzes::bigint, s.plays::bigint
         from stats s
         join public.profiles p on p.id = s.uid
@@ -126,7 +132,7 @@ begin
          group by r.user_id
       )
       select rank() over (order by s.answered desc, s.attempts desc),
-             p.id, coalesce(nullif(p.display_name, ''), p.username), p.avatar_url,
+             p.id, coalesce(nullif(p.display_name, ''), p.username), p.avatar_url, p.username,
              s.answered::bigint, s.attempts::bigint
         from stats s
         join public.profiles p on p.id = s.uid

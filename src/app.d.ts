@@ -9,15 +9,12 @@ declare global {
     }
     interface PageData {
       session: Session | null;
-      recentQuizzes?: {
-        id: string; title: string; subject: string | null;
-        play_count: number; created_at: string;
-      }[];
-      topQuizzes?: {
-        id: string; title: string; play_count: number;
-        profiles: { username: string; display_name: string | null } | null;
-      }[];
-      userStats?: { totalQuizzes: number; totalAttempts: number };
+      profile: {
+        id: string;
+        username: string;
+        display_name: string | null;
+        avatar_url: string | null;
+      } | null;
     }
     // interface Error {}
     // interface Platform {}

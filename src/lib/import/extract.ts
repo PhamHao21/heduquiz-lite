@@ -80,7 +80,7 @@ export async function importQuizFile(file: File): Promise<ImportResult> {
   if (ext === 'docx') paragraphs = await readDocx(file);
   else if (ext === 'pdf') paragraphs = await readPdf(file);
   else if (ext === 'txt') paragraphs = plainTextToParagraphs(await file.text());
-  else if (ext === 'doc') throw new ImportError('File .doc (Word cũ) chưa hỗ trợ — hãy mở bằng Word và "Lưu thành" .docx.');
+  else if (ext === 'doc') throw new ImportError('File .doc (Word cũ) chưa hỗ trợ. Hãy mở bằng Word và "Lưu thành" .docx.');
   else throw new ImportError('Chỉ hỗ trợ file .docx, .pdf hoặc .txt.');
 
   const result = paragraphsToQuizText(paragraphs);

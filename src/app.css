@@ -1,58 +1,217 @@
 @import "tailwindcss";
 
-@theme {
-    /* Jujutsu Kaisen Color Palette */
-    --color-jjk-void: #0a0a0f;
-    --color-jjk-curse: #4b0082;
-    --color-jjk-crimson: #8b0000;
-    --color-jjk-electric: #00eeff;
-    --color-jjk-energy: #1a1a2e;
-    
-    --font-sans: "Inter", system-ui, sans-serif;
-    --font-heading: "Outfit", sans-serif;
+/* Be Vietnam Pro: font thiết kế cho tiếng Việt, tự host (không gọi Google Fonts lúc chạy) */
+@import "@fontsource/be-vietnam-pro/400.css";
+@import "@fontsource/be-vietnam-pro/500.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+@import "@fontsource/be-vietnam-pro/700.css";
+@import "@fontsource/be-vietnam-pro/800.css";
+
+/* Giao diện tối bật bằng class "dark" trên <html> (theo hệ thống hoặc người dùng chọn) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Hệ thống màu (design tokens). Mọi màu trong giao diện đều lấy từ đây, không viết mã màu
+  trực tiếp trong component, để giao diện sáng/tối luôn đồng bộ.
+  - canvas: nền trang · surface: thẻ/khối · sunken: ô nhập, vùng phụ · line: viền
+  - ink: chữ chính · muted: chữ phụ · faint: chữ mờ (chỉ cho chữ không quan trọng)
+  - accent: màu nhấn duy nhất (xanh cobalt) · success/danger/warning: chỉ dùng cho trạng thái
+  Quy ước bo góc: thẻ 16px (rounded-2xl) · nút, ô nhập 12px (rounded-xl) · chip, nhãn: tròn hẳn
+*/
+:root {
+  --canvas: #f5f6f8;
+  --surface: #ffffff;
+  --sunken: #eef0f3;
+  --line: #e2e5ea;
+  --line-strong: #cdd2da;
+  --ink: #12151b;
+  --muted: #545c69;
+  --faint: #7b8492;
+
+  --accent: #2446e8;
+  --accent-strong: #1b37c2;
+  --accent-soft: #e8ecff;
+  --accent-ink: #1a32a6;
+  --on-accent: #ffffff;
+
+  --success: #0c7a53;
+  --success-soft: #e3f5ec;
+  --danger: #c93636;
+  --danger-soft: #fdebeb;
+  --warning: #9a5b00;
+  --warning-soft: #fff2db;
+
+  --shadow-color: 220 30% 20%;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0c0e12;
+  --surface: #14171d;
+  --sunken: #1b1f27;
+  --line: #262b35;
+  --line-strong: #353b47;
+  --ink: #eceef2;
+  --muted: #a5adba;
+  --faint: #7d8696;
+
+  --accent: #6d87ff;
+  --accent-strong: #8ea2ff;
+  --accent-soft: #1a2244;
+  --accent-ink: #b8c5ff;
+  --on-accent: #0c0e12;
+
+  --success: #3fcf8e;
+  --success-soft: #10291f;
+  --danger: #ff7272;
+  --danger-soft: #331517;
+  --warning: #f5b544;
+  --warning-soft: #2e2210;
+
+  --shadow-color: 220 40% 2%;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
 }
 
 @layer base {
-    body {
-        @apply bg-jjk-void text-slate-100 selection:bg-jjk-curse selection:text-white;
-    }
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: "ss01";
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button, [role="button"] {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 @layer components {
-    /* Domain Expansion Effect (Glassmorphism) */
-    .domain-expansion {
-        @apply bg-jjk-energy/60 backdrop-blur-xl border border-white/10 shadow-2xl;
-    }
+  /* Thẻ / khối nội dung */
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+    box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.04), 0 2px 8px hsl(var(--shadow-color) / 0.04);
+  }
+  .card-hover {
+    @apply transition duration-200 hover:border-line-strong;
+  }
+  .card-hover:hover {
+    box-shadow: 0 2px 4px hsl(var(--shadow-color) / 0.05), 0 12px 28px hsl(var(--shadow-color) / 0.08);
+  }
 
-    .cursed-border {
-        @apply border border-transparent bg-gradient-to-r from-jjk-crimson via-jjk-curse to-jjk-electric bg-clip-border;
-        border-image: linear-gradient(to right, #8b0000, #4b0082, #00eeff) 1;
-    }
+  /* Ô nhập liệu */
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-faint;
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-ink;
+  }
+  .hint {
+    @apply mt-1.5 text-xs text-muted;
+  }
 
-    .btn-jjk {
-        @apply px-6 py-3 rounded-xl font-black uppercase tracking-widest transition-all 
-               bg-jjk-energy border border-white/10 hover:border-jjk-electric active:scale-95;
-    }
+  /* Chip / nhãn nhỏ (bo tròn hẳn) */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-line-strong hover:text-ink;
+  }
+  .chip-active {
+    @apply border-accent bg-accent-soft text-accent-ink hover:border-accent hover:text-accent-ink;
+  }
+  .tag {
+    @apply inline-flex items-center gap-1 rounded-full bg-sunken px-2.5 py-0.5 text-[11px] font-semibold text-muted;
+  }
 
-    .btn-jjk-primary {
-        @apply bg-gradient-to-r from-jjk-curse to-indigo-600 text-white shadow-lg shadow-jjk-curse/20 
-               hover:shadow-jjk-curse/40 hover:-translate-y-0.5;
-    }
+  /* Nút: dùng chung cho <button> và <a> */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition duration-150 select-none active:translate-y-px disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-sm { @apply px-3 py-2 text-[13px]; }
+  .btn-lg { @apply px-5 py-3 text-[15px]; }
+  .btn-icon { @apply p-2.5; }
+  .btn-primary { @apply bg-accent text-on-accent hover:bg-accent-strong; }
+  .btn-secondary { @apply border border-line bg-surface text-ink hover:border-line-strong hover:bg-sunken; }
+  .btn-ghost { @apply text-muted hover:bg-sunken hover:text-ink; }
+  .btn-danger { @apply bg-danger text-white hover:opacity-90; }
+  .dark .btn-danger { @apply text-canvas; }
+  .btn-success { @apply bg-success text-white hover:opacity-90; }
+  .dark .btn-success { @apply text-canvas; }
 
-    .text-jjk-gradient {
-        @apply bg-gradient-to-r from-jjk-crimson via-jjk-curse to-jjk-electric bg-clip-text text-transparent;
-    }
+  /* Nhóm nút chọn một (segmented control) */
+  .segmented {
+    @apply inline-flex rounded-xl bg-sunken p-1;
+  }
+  .segmented > * {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-muted transition;
+  }
+  .segmented > *:hover { @apply text-ink; }
+  .segmented > [aria-current="true"],
+  .segmented > [aria-pressed="true"],
+  .segmented > [aria-selected="true"] {
+    @apply bg-surface text-ink;
+    box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.08);
+  }
+
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-sunken;
+  }
 }
 
-/* Custom Animations */
-@keyframes energy-vibration {
-    0% { transform: translate(0,0); }
-    25% { transform: translate(1px, -1px); }
-    50% { transform: translate(-1px, 1px); }
-    75% { transform: translate(1px, 1px); }
-    100% { transform: translate(0,0); }
+/* Hiệu ứng xuất hiện nhẹ cho nội dung trang (tắt khi người dùng giảm chuyển động) */
+@media (prefers-reduced-motion: no-preference) {
+  .rise-in {
+    animation: rise-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .rise-in-delay-1 { animation-delay: 60ms; }
+  .rise-in-delay-2 { animation-delay: 120ms; }
+  .rise-in-delay-3 { animation-delay: 180ms; }
 }
 
-.animate-energy {
-    animation: energy-vibration 0.3s infinite ease-in-out;
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
 }

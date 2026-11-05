@@ -7,6 +7,7 @@ export interface LeaderRow {
   user_id: string;
   display_name: string;
   avatar_url: string | null;
+  username: string;
   score: number;
   extra: number;
 }

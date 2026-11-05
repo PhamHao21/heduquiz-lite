@@ -119,6 +119,8 @@ export interface QuizProgress extends Arrangement {
   study?: boolean;
   /** (chế độ Học) các câu đã hiện đáp án */
   revealed?: Record<string, boolean>;
+  /** các câu người làm đánh dấu để xem lại trước khi nộp */
+  flagged?: Record<string, boolean>;
   chosen: Record<string, string[]>;
   current: number;
   startedAt: number;

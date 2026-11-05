@@ -3,6 +3,8 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 
 const LIMITS = { display_name: 60, bio: 300, avatar_url: 500 } as const;
+/** tên người dùng dùng trong đường dẫn /u/<username> */
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._]{1,28}[a-z0-9])$/;
 
 /** PATCH /api/profile — update own profile */
 export const PATCH = async (event: RequestEvent) => {
@@ -26,6 +28,16 @@ export const PATCH = async (event: RequestEvent) => {
     patch[key] = trimmed || null;
   }
   if (patch.display_name === null) throw error(400, 'Tên hiển thị không được để trống');
+
+  if (body.username !== undefined) {
+    if (typeof body.username !== 'string') throw error(400, 'Tên người dùng không hợp lệ');
+    const username = body.username.trim().toLowerCase();
+    if (!USERNAME_RE.test(username)) {
+      throw error(400, 'Tên người dùng dài 3-30 ký tự, chỉ gồm chữ thường không dấu, số, dấu chấm hoặc gạch dưới');
+    }
+    patch.username = username;
+  }
+
   if (Object.keys(patch).length === 0) throw error(400, 'Không có gì để cập nhật');
 
   const { data, error: err } = await locals.supabase
@@ -35,6 +47,9 @@ export const PATCH = async (event: RequestEvent) => {
     .select()
     .single();
 
-  if (err) throw error(500, err.message);
+  if (err) {
+    if (err.code === '23505') throw error(409, 'Tên người dùng này đã có người dùng');
+    throw error(500, err.message);
+  }
   return json(data);
 };

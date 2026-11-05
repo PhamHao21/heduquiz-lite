@@ -1,9 +1,11 @@
 <!-- src/lib/components/quiz/Timer.svelte -->
 <script lang="ts">
+  import { Clock } from 'lucide-svelte';
+
   interface Props {
     /** mốc hết giờ (ms, Date.now()) */
     endsAt: number;
-    /** tổng thời gian (giây), chỉ dùng để vẽ vòng tiến độ */
+    /** tổng thời gian (giây), để vẽ thanh tiến độ */
     totalSeconds: number;
     onExpire?: () => void;
   }
@@ -17,10 +19,11 @@
   let remaining = $state(secondsLeft());
   let expired = false;
 
-  const mm = $derived(String(Math.floor(remaining / 60)).padStart(2, '0'));
+  const hh = $derived(Math.floor(remaining / 3600));
+  const mm = $derived(String(Math.floor((remaining % 3600) / 60)).padStart(2, '0'));
   const ss = $derived(String(remaining % 60).padStart(2, '0'));
-  const danger = $derived(remaining <= 30);
-  const pct    = $derived(totalSeconds > 0 ? (remaining / totalSeconds) * 100 : 0);
+  const danger = $derived(remaining <= 60);
+  const pct = $derived(totalSeconds > 0 ? (remaining / totalSeconds) * 100 : 0);
 
   $effect(() => {
     const tick = () => {
@@ -40,24 +43,11 @@
   });
 </script>
 
-<div class="flex flex-col items-center gap-1">
-  <!-- Progress ring -->
-  <div class="relative h-14 w-14">
-    <svg class="h-full w-full -rotate-90" viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor"
-        class="text-slate-200 dark:text-slate-700" stroke-width="4"/>
-      <circle cx="24" cy="24" r="20" fill="none"
-        stroke="currentColor"
-        class="{danger ? 'text-red-500' : 'text-indigo-500'} transition-colors"
-        stroke-width="4"
-        stroke-dasharray="125.66"
-        stroke-dashoffset="{125.66 - (pct / 100) * 125.66}"
-        stroke-linecap="round"
-      />
-    </svg>
-    <span class="absolute inset-0 flex items-center justify-center font-mono text-xs font-bold
-      {danger ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}">
-      {mm}:{ss}
-    </span>
-  </div>
+<div class="relative overflow-hidden rounded-xl border px-3 py-2 {danger ? 'border-danger bg-danger-soft text-danger' : 'border-line bg-surface text-ink'}"
+  role="timer" aria-label="Thời gian còn lại">
+  <span class="flex items-center gap-1.5 font-mono text-sm font-bold tabular-nums">
+    <Clock size={15} />
+    {#if hh > 0}{hh}:{/if}{mm}:{ss}
+  </span>
+  <span class="absolute bottom-0 left-0 h-0.5 {danger ? 'bg-danger' : 'bg-accent'} transition-[width] duration-500" style="width:{pct}%"></span>
 </div>

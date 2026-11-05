@@ -1,6 +1,7 @@
 <!-- src/routes/+error.svelte -->
 <script lang="ts">
   import { page } from '$app/state';
+  import { SearchX, ShieldAlert, CloudOff } from 'lucide-svelte';
 
   const status = $derived(page.status);
   const title = $derived(
@@ -8,22 +9,20 @@
     status === 401 || status === 403 ? 'Bạn không có quyền xem trang này' :
     'Đã có lỗi xảy ra'
   );
+  const Icon = $derived(status === 404 ? SearchX : status === 401 || status === 403 ? ShieldAlert : CloudOff);
 </script>
 
-<svelte:head><title>{status} — HeduQuiz</title></svelte:head>
+<svelte:head><title>{status} · HeduQuiz</title></svelte:head>
 
-<div class="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center text-center" style="color:#1e293b;">
-  <p class="text-7xl font-black tracking-tighter" style="color:#4f46e5;">{status}</p>
-  <h1 class="mt-3 text-xl font-black" style="color:#0f172a;">{title}</h1>
-  {#if page.error?.message && page.error.message !== title}
-    <p class="mt-2 text-sm" style="color:#64748b;">{page.error.message}</p>
+<div class="mx-auto flex min-h-[55vh] max-w-md flex-col items-center justify-center text-center">
+  <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-sunken text-muted"><Icon size={26} /></div>
+  <p class="mt-6 font-mono text-sm font-semibold text-faint">Lỗi {status}</p>
+  <h1 class="mt-1 text-2xl font-extrabold tracking-tight">{title}</h1>
+  {#if page.error?.message && page.error.message !== title && page.error.message !== 'Not Found'}
+    <p class="mt-2 text-sm text-muted">{page.error.message}</p>
   {/if}
-  <div class="mt-6 flex gap-3">
-    <a href="/kho-de" class="rounded-2xl px-5 py-3 text-sm font-black" style="background:#4f46e5;color:#ffffff;">Về Kho đề</a>
-    <button
-      onclick={() => history.back()}
-      class="rounded-2xl border px-5 py-3 text-sm font-bold"
-      style="border-color:#e2e8f0;background:#ffffff;color:#475569;"
-    >← Quay lại</button>
+  <div class="mt-8 flex gap-2">
+    <button onclick={() => history.back()} class="btn btn-secondary">Quay lại</button>
+    <a href={page.data.profile ? '/kho-de' : '/'} class="btn btn-primary">Về trang chính</a>
   </div>
 </div>

@@ -1,6 +1,7 @@
 <!-- src/lib/components/quiz/QuizEngine.svelte -->
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import { ArrowLeft, ArrowRight, Flag, LayoutGrid, Send, Check, X, GraduationCap } from 'lucide-svelte';
   import Timer from './Timer.svelte';
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import {
@@ -46,14 +47,19 @@
   let chosen      = $state<Record<string, string[]>>(resume?.chosen ?? {});
   let submitted   = $state(false);
   let confirmOpen = $state(false);
-  /** (chế độ Học) các câu đã hiện đáp án — không đổi được lựa chọn nữa */
+  /** (chế độ Học) các câu đã hiện đáp án, không đổi được lựa chọn nữa */
   let revealed    = $state<Record<string, boolean>>(resume?.revealed ?? {});
+  /** các câu đánh dấu để xem lại trước khi nộp */
+  let flagged     = $state<Record<string, boolean>>(resume?.flagged ?? {});
+  /** (điện thoại) mở bảng số câu */
+  let showNav     = $state(false);
 
   const q             = $derived(questions[current]);
-  const pct           = $derived(Math.round(((current + 1) / total) * 100));
   const isLast        = $derived(current === total - 1);
   const currentChosen = $derived(chosen[q?.id] ?? []);
-  const unanswered    = $derived(questions.filter(item => !(chosen[item.id]?.length)).length);
+  const answered      = $derived(questions.filter(item => chosen[item.id]?.length).length);
+  const unanswered    = $derived(total - answered);
+  const flaggedCount  = $derived(questions.filter(item => flagged[item.id]).length);
   /** câu hiện tại đã hiện đáp án chưa (đã nộp bài, hoặc chế độ Học đã kiểm tra) */
   const qRevealed     = $derived(submitted || !!revealed[q?.id]);
   const qCorrect      = $derived(q ? isAnswerCorrect(q, currentChosen) : false);
@@ -75,6 +81,7 @@
       sectionId: init.sectionId ?? null,
       study,
       revealed,
+      flagged,
       ...arrangement,
       chosen,
       current,
@@ -108,15 +115,22 @@
     revealed = { ...revealed, [q.id]: true };
   }
 
-  function next() {
-    if (current < total - 1) current++;
+  function toggleFlag() {
+    flagged = { ...flagged, [q.id]: !flagged[q.id] };
   }
 
-  // Phím tắt: A–H hoặc 1–8 chọn đáp án, ←/→ chuyển câu, Enter: kiểm tra / câu tiếp / nộp bài.
+  function goTo(i: number) {
+    current = Math.min(Math.max(i, 0), total - 1);
+    showNav = false;
+  }
+  const next = () => goTo(current + 1);
+  const prev = () => goTo(current - 1);
+
+  // Phím tắt: A–H hoặc 1–8 chọn đáp án, ←/→ chuyển câu, M đánh dấu, Enter: kiểm tra / câu tiếp / nộp bài.
   function onKeydown(e: KeyboardEvent) {
     if (submitted || confirmOpen || e.ctrlKey || e.metaKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
 
     const key = e.key;
     let index = -1;
@@ -131,7 +145,8 @@
     }
 
     if (key === 'ArrowRight') { e.preventDefault(); next(); }
-    else if (key === 'ArrowLeft') { e.preventDefault(); if (current > 0) current--; }
+    else if (key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    else if (key === 'm' || key === 'M') { e.preventDefault(); toggleFlag(); }
     else if (key === 'Enter' && target?.tagName !== 'BUTTON' && target?.tagName !== 'A') {
       e.preventDefault();
       if (study && q.multi && !qRevealed && currentChosen.length > 0) checkAnswer();
@@ -140,10 +155,10 @@
     }
   }
 
-  /** Bấm "Nộp bài": còn câu chưa làm thì hỏi lại trước. */
+  /** Bấm "Nộp bài": còn câu chưa làm hoặc còn câu đánh dấu thì hỏi lại trước. */
   function requestSubmit() {
     if (submitted) return;
-    if (unanswered > 0) confirmOpen = true;
+    if (unanswered > 0 || flaggedCount > 0) confirmOpen = true;
     else submit();
   }
 
@@ -157,29 +172,34 @@
     props.onComplete(gradeAttempt(questions, chosen), timeSpent);
   }
 
-  // Dùng inline style thay vì Tailwind text-* để không bị body {color: slate-100} ghi đè
-  function optionStyle(label: string, is_correct: boolean): string {
-    const sel = currentChosen.includes(label);
-    if (!qRevealed) {
-      return sel
-        ? 'border-color:#6366f1;background:#eef2ff;color:#3730a3;'
-        : 'border-color:#e2e8f0;background:#ffffff;color:#374151;';
-    }
-    if (is_correct)         return 'border-color:#10b981;background:#ecfdf5;color:#065f46;';
-    if (sel && !is_correct) return 'border-color:#f87171;background:#fef2f2;color:#991b1b;';
-    return 'border-color:#e2e8f0;background:#ffffff;color:#9ca3af;opacity:0.7;';
-  }
+  const confirmMessage = $derived(
+    [
+      unanswered > 0 ? `Bạn còn ${unanswered} câu chưa trả lời, câu bỏ trống sẽ bị tính sai.` : '',
+      flaggedCount > 0 ? `Có ${flaggedCount} câu bạn đã đánh dấu để xem lại.` : ''
+    ].filter(Boolean).join(' ')
+  );
 
-  function badgeStyle(label: string, is_correct: boolean): string {
+  function optionClass(label: string, isCorrect: boolean) {
     const sel = currentChosen.includes(label);
-    if (!qRevealed) {
-      return sel
-        ? 'background:#6366f1;border-color:#6366f1;color:#ffffff;'
-        : 'background:#ffffff;border-color:#cbd5e1;color:#94a3b8;';
+    if (!qRevealed) return sel ? 'border-accent bg-accent-soft' : 'border-line bg-surface hover:border-line-strong';
+    if (isCorrect) return 'border-success bg-success-soft';
+    if (sel) return 'border-danger bg-danger-soft';
+    return 'border-line bg-surface opacity-55';
+  }
+  function letterClass(label: string, isCorrect: boolean) {
+    const sel = currentChosen.includes(label);
+    if (!qRevealed) return sel ? 'border-accent bg-accent text-on-accent' : 'border-line-strong text-muted';
+    if (isCorrect) return 'border-success bg-success text-surface';
+    if (sel) return 'border-danger bg-danger text-surface';
+    return 'border-line text-faint';
+  }
+  function cellClass(item: Question, i: number) {
+    const ring = i === current ? 'ring-2 ring-accent ring-offset-1 ring-offset-surface' : '';
+    if (study && revealed[item.id]) {
+      return `${ring} ${isAnswerCorrect(item, chosen[item.id] ?? []) ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'}`;
     }
-    if (is_correct)         return 'background:#10b981;border-color:#10b981;color:#ffffff;';
-    if (sel && !is_correct) return 'background:#f87171;border-color:#f87171;color:#ffffff;';
-    return 'background:#ffffff;border-color:#e2e8f0;color:#cbd5e1;';
+    if (chosen[item.id]?.length) return `${ring} bg-accent-soft text-accent-ink`;
+    return `${ring} bg-sunken text-muted hover:text-ink`;
   }
 </script>
 
@@ -188,158 +208,140 @@
 <ConfirmModal
   open={confirmOpen}
   title="Nộp bài?"
-  message={`Bạn còn ${unanswered} câu chưa trả lời. Câu bỏ trống sẽ bị tính sai.`}
+  message={confirmMessage}
   confirmLabel="Nộp luôn"
   cancelLabel="Làm tiếp"
   onConfirm={submit}
   onCancel={() => { confirmOpen = false; }}
 />
 
-<!--
-  Wrapper dùng style inline buộc màu chữ + nền,
-  tránh bị app.css body { color: slate-100 } làm chữ trắng trên nền trắng
--->
-<div class="flex flex-col gap-6" style="color:#1e293b;">
-
-  <!-- Progress + Timer -->
-  <div class="flex items-center gap-4">
-    <div class="flex-1">
-      <div class="mb-1 flex justify-between text-xs" style="color:#64748b;">
-        <span>
-          Câu {current + 1} / {total} · đã làm {total - unanswered}{#if study && studyChecked.length > 0}<span style="color:#059669;">{` · đúng ${studyCorrect}/${studyChecked.length}`}</span>{/if}
-        </span>
-        <button
-          onclick={requestSubmit}
-          disabled={submitted}
-          class="font-semibold underline-offset-2 hover:underline"
-          style="color:#4f46e5;"
-        >Nộp bài</button>
-      </div>
-      <div class="h-2 overflow-hidden rounded-full" style="background:#e2e8f0;">
-        <div class="h-full rounded-full transition-all duration-300" style="width:{pct}%;background:#6366f1;"></div>
-      </div>
-    </div>
-    {#if endsAt !== null}
-      <Timer {endsAt} totalSeconds={timeLimit || Math.round((endsAt - startedAt) / 1000)} onExpire={submit} />
-    {/if}
-  </div>
-
-  <!-- Question card -->
-  <div class="rounded-xl p-6 shadow-sm" style="background:#ffffff;border:1px solid #e2e8f0;">
-    <div class="mb-3 flex items-center gap-2">
-      <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" style="background:#eef2ff;color:#4338ca;">
-        Câu {current + 1}
-      </span>
-      {#if q.multi}
-        <span class="rounded-full px-2 py-0.5 text-xs font-semibold" style="background:#fef3c7;color:#92400e;">
-          Chọn nhiều
-        </span>
-      {/if}
-      {#if study}
-        <span class="ml-auto rounded-full px-2 py-0.5 text-xs font-semibold" style="background:#ecfdf5;color:#047857;">
-          Chế độ Học
-        </span>
-      {/if}
-    </div>
-    <p class="whitespace-pre-line text-base font-medium leading-relaxed" style="color:#1e293b;">
-      {q.content}
-    </p>
-  </div>
-
-  <!-- Options grid -->
-  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    {#each q.options as opt, oi (opt.label)}
+{#snippet navigator(cols: string)}
+  <div class="grid {cols} gap-1.5" role="group" aria-label="Danh sách câu hỏi">
+    {#each questions as item, i (item.id)}
       <button
-        onclick={() => toggleOption(opt.label)}
-        disabled={qRevealed}
-        class="flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left text-sm transition-all"
-        style={optionStyle(opt.label, opt.is_correct)}
+        onclick={() => goTo(i)}
+        class="relative flex aspect-square items-center justify-center rounded-lg text-xs font-bold tabular-nums transition {cellClass(item, i)}"
+        aria-label="Câu {i + 1}{chosen[item.id]?.length ? ', đã làm' : ''}{flagged[item.id] ? ', đã đánh dấu' : ''}"
+        aria-current={i === current ? 'step' : undefined}
       >
-        <!-- Chữ cái theo vị trí trên màn hình (A, B, C…), kể cả khi đáp án đã bị đảo -->
-        <span
-          class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-all"
-          style={badgeStyle(opt.label, opt.is_correct)}
-        >
-          {displayLetter(oi)}
-        </span>
-        <span class="flex-1 whitespace-pre-line font-medium">{opt.text}</span>
-        {#if qRevealed && opt.is_correct}
-          <span style="color:#059669;font-weight:bold;">✓</span>
-        {:else if qRevealed && currentChosen.includes(opt.label) && !opt.is_correct}
-          <span style="color:#dc2626;font-weight:bold;">✗</span>
-        {/if}
+        {i + 1}
+        {#if flagged[item.id]}<span class="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-warning"></span>{/if}
       </button>
     {/each}
   </div>
+  <div class="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
+    <span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded bg-accent-soft ring-1 ring-accent/40"></span> Đã làm</span>
+    <span class="inline-flex items-center gap-1"><span class="h-2.5 w-2.5 rounded bg-sunken"></span> Chưa làm</span>
+    <span class="inline-flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-warning"></span> Đánh dấu</span>
+  </div>
+{/snippet}
 
-  <!-- Chế độ Học: nút kiểm tra (câu nhiều đáp án) và kết quả + giải thích -->
-  {#if study && q.multi && !qRevealed}
-    <button
-      onclick={checkAnswer}
-      disabled={currentChosen.length === 0}
-      class="self-center rounded-xl px-6 py-2.5 text-sm font-bold shadow transition disabled:opacity-40"
-      style="background:#059669;color:#ffffff;"
-    >Kiểm tra</button>
-  {/if}
-  {#if study && qRevealed}
-    <div
-      class="rounded-xl border-2 p-4 text-sm"
-      style="border-color:{qCorrect ? '#6ee7b7' : '#fca5a5'};background:{qCorrect ? '#ecfdf5' : '#fef2f2'};"
-      role="status"
-    >
-      <p class="font-bold" style="color:{qCorrect ? '#047857' : '#b91c1c'};">
-        {#if qCorrect}✓ Chính xác!{:else}✗ Chưa đúng — đáp án đúng: {correctLetters}{/if}
-      </p>
-      {#if q.explanation}
-        <p class="mt-2 whitespace-pre-line leading-relaxed" style="color:#334155;">
-          <span class="font-semibold">Giải thích:</span> {q.explanation}
-        </p>
+<div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_288px] lg:items-start">
+  <section class="min-w-0 space-y-4">
+    <!-- Thanh trạng thái (điện thoại) -->
+    <div class="flex items-center gap-2 lg:hidden">
+      <button class="btn btn-secondary btn-sm" onclick={() => { showNav = !showNav; }} aria-expanded={showNav}>
+        <LayoutGrid size={15} /> {current + 1}/{total}
+      </button>
+      <span class="text-xs text-muted">Đã làm {answered}</span>
+      <div class="ml-auto flex items-center gap-2">
+        {#if endsAt !== null}<Timer {endsAt} totalSeconds={timeLimit || Math.round((endsAt - startedAt) / 1000)} onExpire={submit} />{/if}
+        <button class="btn btn-primary btn-sm" onclick={requestSubmit} disabled={submitted}>Nộp bài</button>
+      </div>
+    </div>
+    {#if showNav}
+      <div class="card rise-in p-4 lg:hidden">{@render navigator('grid-cols-8 sm:grid-cols-10')}</div>
+    {/if}
+
+    <!-- Câu hỏi -->
+    <article class="card p-5 sm:p-7">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm font-bold text-accent">Câu {current + 1}</span>
+        <span class="text-sm text-faint">/ {total}</span>
+        {#if q.multi}<span class="tag bg-warning-soft text-warning">Chọn nhiều đáp án</span>{/if}
+        {#if study}<span class="tag"><GraduationCap size={12} /> Chế độ Học</span>{/if}
+        <button
+          onclick={toggleFlag}
+          class="ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition {flagged[q.id] ? 'bg-warning-soft text-warning' : 'text-muted hover:bg-sunken hover:text-ink'}"
+          aria-pressed={!!flagged[q.id]}
+          title="Đánh dấu để xem lại (phím M)"
+        >
+          <Flag size={13} fill={flagged[q.id] ? 'currentColor' : 'none'} /> {flagged[q.id] ? 'Đã đánh dấu' : 'Đánh dấu'}
+        </button>
+      </div>
+
+      <p class="mt-4 whitespace-pre-line text-[17px] font-semibold leading-relaxed text-ink">{q.content}</p>
+
+      <div class="mt-6 grid gap-2.5 sm:grid-cols-2">
+        {#each q.options as opt, oi (opt.label)}
+          <button
+            onclick={() => toggleOption(opt.label)}
+            aria-pressed={currentChosen.includes(opt.label)}
+            aria-disabled={qRevealed}
+            class="flex items-start gap-3 rounded-xl border-2 p-3.5 text-left text-[15px] text-ink transition {qRevealed ? 'cursor-default' : 'active:scale-[0.99]'} {optionClass(opt.label, opt.is_correct)}"
+          >
+            <!-- Chữ cái theo vị trí trên màn hình (A, B, C…), kể cả khi đáp án đã bị đảo -->
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs font-bold transition {letterClass(opt.label, opt.is_correct)}">
+              {displayLetter(oi)}
+            </span>
+            <span class="flex-1 whitespace-pre-line pt-0.5 font-medium">{opt.text}</span>
+            {#if qRevealed && opt.is_correct}<Check size={18} class="mt-1 shrink-0 text-success" />{/if}
+            {#if qRevealed && !opt.is_correct && currentChosen.includes(opt.label)}<X size={18} class="mt-1 shrink-0 text-danger" />{/if}
+          </button>
+        {/each}
+      </div>
+
+      <!-- Chế độ Học: nút kiểm tra (câu nhiều đáp án) và kết quả + giải thích -->
+      {#if study && q.multi && !qRevealed}
+        <button onclick={checkAnswer} disabled={currentChosen.length === 0} class="btn btn-primary mt-5 w-full sm:w-auto">
+          Kiểm tra
+        </button>
+      {/if}
+      {#if study && qRevealed}
+        <div class="rise-in mt-5 rounded-xl p-4 text-sm {qCorrect ? 'bg-success-soft' : 'bg-danger-soft'}" role="status">
+          <p class="font-bold {qCorrect ? 'text-success' : 'text-danger'}">
+            {#if qCorrect}Chính xác!{:else}Chưa đúng. Đáp án đúng: {correctLetters}{/if}
+          </p>
+          {#if q.explanation}
+            <p class="mt-2 whitespace-pre-line leading-relaxed text-ink"><span class="font-semibold">Giải thích:</span> {q.explanation}</p>
+          {/if}
+        </div>
+      {/if}
+    </article>
+
+    <!-- Điều hướng -->
+    <div class="flex items-center justify-between gap-3">
+      <button onclick={prev} disabled={current === 0} class="btn btn-secondary"><ArrowLeft size={16} /> Câu trước</button>
+      {#if isLast}
+        <button onclick={requestSubmit} disabled={submitted} class="btn btn-primary"><Send size={16} /> Nộp bài</button>
+      {:else}
+        <button onclick={next} class="btn btn-secondary">Câu tiếp <ArrowRight size={16} /></button>
       {/if}
     </div>
-  {/if}
 
-  <!-- Navigation -->
-  <div class="flex items-center justify-between gap-3">
-    <button
-      onclick={() => { if (current > 0) current--; }}
-      disabled={current === 0}
-      class="shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition disabled:opacity-40"
-      style="background:#ffffff;border-color:#e2e8f0;color:#475569;"
-    >← Trước</button>
+    <p class="hidden text-center text-xs text-faint sm:block">
+      Phím tắt: <kbd class="font-sans font-semibold text-muted">A-D</kbd> chọn đáp án,
+      <kbd class="font-sans font-semibold text-muted">← →</kbd> chuyển câu,
+      <kbd class="font-sans font-semibold text-muted">M</kbd> đánh dấu,
+      <kbd class="font-sans font-semibold text-muted">Enter</kbd> {study ? 'kiểm tra hoặc ' : ''}sang câu tiếp
+    </p>
+  </section>
 
-    <div class="flex flex-wrap justify-center gap-1.5">
-      {#each questions as qDot, i (qDot.id)}
-        <button
-          onclick={() => { current = i; }}
-          aria-label="Câu {i + 1}{chosen[qDot.id]?.length ? ' (đã làm)' : ''}"
-          class="h-2.5 w-2.5 rounded-full transition-all"
-          style="
-            transform: {i === current ? 'scale(1.25)' : 'scale(1)'};
-            background: {i === current ? '#6366f1'
-              : study && revealed[qDot.id] ? (isAnswerCorrect(qDot, chosen[qDot.id] ?? []) ? '#34d399' : '#f87171')
-              : chosen[qDot.id]?.length ? '#a5b4fc' : '#cbd5e1'};
-          "
-        ></button>
-      {/each}
-    </div>
-
-    {#if isLast}
-      <button
-        onclick={requestSubmit}
-        disabled={submitted}
-        class="shrink-0 rounded-lg px-5 py-2 text-sm font-semibold shadow transition disabled:opacity-50"
-        style="background:#4f46e5;color:#ffffff;"
-      >Nộp bài</button>
-    {:else}
-      <button
-        onclick={next}
-        class="shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition"
-        style="background:#ffffff;border-color:#e2e8f0;color:#475569;"
-      >Tiếp →</button>
+  <!-- Bảng điều khiển (máy tính) -->
+  <aside class="card hidden space-y-4 p-5 lg:sticky lg:top-24 lg:block">
+    {#if endsAt !== null}
+      <Timer {endsAt} totalSeconds={timeLimit || Math.round((endsAt - startedAt) / 1000)} onExpire={submit} />
     {/if}
-  </div>
-
-  <p class="hidden text-center text-[11px] sm:block" style="color:#94a3b8;">
-    Phím tắt: <b>A–D</b> hoặc <b>1–4</b> chọn đáp án · <b>← →</b> chuyển câu · <b>Enter</b> {study ? 'kiểm tra / ' : ''}câu tiếp
-  </p>
+    <div>
+      <div class="flex items-baseline justify-between text-sm">
+        <span class="font-semibold">Đã làm {answered}/{total}</span>
+        {#if study && studyChecked.length > 0}<span class="text-xs font-semibold text-success">Đúng {studyCorrect}/{studyChecked.length}</span>{/if}
+      </div>
+      <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-sunken">
+        <div class="h-full rounded-full bg-accent transition-[width] duration-300" style="width:{(answered / total) * 100}%"></div>
+      </div>
+    </div>
+    {@render navigator('grid-cols-6')}
+    <button onclick={requestSubmit} disabled={submitted} class="btn btn-primary w-full"><Send size={16} /> Nộp bài</button>
+  </aside>
 </div>

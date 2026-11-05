@@ -38,7 +38,7 @@ Nội dung câu hỏi?
 B. Đáp án sai
 C. Đáp án sai
 D. Đáp án sai
-> Giải thích ngắn gọn (1–2 câu) vì sao đáp án đúng
+> Giải thích ngắn gọn (1-2 câu) vì sao đáp án đúng
 
 Generate now:`;
 }
@@ -63,7 +63,7 @@ Nội dung câu hỏi?
 B. Đáp án sai
 C. Đáp án sai
 D. Đáp án sai
-> Giải thích ngắn gọn (1–2 câu) vì sao đáp án đúng
+> Giải thích ngắn gọn (1-2 câu) vì sao đáp án đúng
 
 Generate now:`;
 }

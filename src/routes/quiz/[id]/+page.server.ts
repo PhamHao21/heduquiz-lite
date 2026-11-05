@@ -24,11 +24,18 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     throw error(404, 'Không tìm thấy đề thi');
   }
 
-  const { data: questions } = await locals.supabase
-    .from('questions')
-    .select('id, position, content, options, multi, explanation')
-    .eq('quiz_id', params.id)
-    .order('position', { ascending: true });
+  const [{ data: questions }, { data: owner }] = await Promise.all([
+    locals.supabase
+      .from('questions')
+      .select('id, position, content, options, multi, explanation')
+      .eq('quiz_id', params.id)
+      .order('position', { ascending: true }),
+    locals.supabase
+      .from('profiles')
+      .select('username, display_name, avatar_url')
+      .eq('id', quiz.owner_id)
+      .maybeSingle()
+  ]);
 
   // Lịch sử làm bài của user này (nếu đã login): 5 lượt gần nhất để hiển thị,
   // và tối đa 50 lượt để tính các câu cần ôn (trả lời sai ở lần gần nhất).
@@ -54,6 +61,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     questions: questions ?? [],
     history,
     review,
+    owner: owner as { username: string; display_name: string | null; avatar_url: string | null } | null,
     isOwner: quiz.owner_id === session?.user.id
   };
 };

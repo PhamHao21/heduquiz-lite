@@ -16,6 +16,7 @@ export interface ExploreQuiz {
   owner_id: string;
   owner_name: string;
   owner_avatar: string | null;
+  owner_username: string;
   total_count: number;
 }
 

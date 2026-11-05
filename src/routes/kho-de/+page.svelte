@@ -1,6 +1,6 @@
 <!-- src/routes/kho-de/+page.svelte -->
 <script lang="ts">
-  import { FileText, Trash2, Globe, Lock, Clock, BookOpen, Plus, Search } from 'lucide-svelte';
+  import { FileText, Trash2, Globe, Lock, Clock, BookOpen, Plus, Search, Repeat, History } from 'lucide-svelte';
   import { authStore } from '$lib/stores/auth.svelte';
   import { invalidateAll } from '$app/navigation';
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
@@ -14,7 +14,10 @@
   }
 
   const quizzes = $derived(data.quizzes as Quiz[]);
-  const stats   = $derived(data.stats ?? { totalQuizzes: 0, totalAttempts: 0 });
+  const stats   = $derived(data.stats ?? { totalQuizzes: 0, totalAttempts: 0, needsReview: 0 });
+  // Tiến độ ôn tập theo đề: số câu cần ôn cho đề của mình + danh sách đề của người khác đã ôn.
+  const progressById = $derived(new Map(data.progress.map(p => [p.quiz_id, p])));
+  const othersStudied = $derived(data.progress.filter(p => !p.is_owner).slice(0, 6));
 
   let search       = $state('');
   let deleteTarget = $state<Quiz | null>(null);   // quiz đang chờ xác nhận xóa
@@ -112,6 +115,15 @@
           <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Lượt ôn</p>
         </div>
       </div>
+      {#if stats.needsReview > 0}
+        <div class="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-sm">
+          <Repeat size={18} class="text-amber-300" />
+          <div>
+            <p class="text-xl font-black">{stats.needsReview}</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Câu cần ôn</p>
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -143,6 +155,7 @@
   {:else}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {#each filtered as q (q.id)}
+        {@const prog = progressById.get(q.id)}
         <div class="group relative flex flex-col rounded-[2rem] border p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
           style="background:#ffffff;border-color:#f1f5f9;">
 
@@ -170,10 +183,19 @@
           </h3>
 
           <!-- Meta -->
-          <p class="mb-4 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style="color:#94a3b8;">
+          <p class="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style="color:#94a3b8;">
             <Clock size={11} /> {formatDate(q.updated_at)}
             <span class="mx-1">·</span>
             <BookOpen size={11} /> {q.play_count} lượt
+          </p>
+          <p class="mb-4 min-h-[1.25rem] text-[11px] font-bold">
+            {#if prog && prog.needs_review > 0}
+              <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style="background:#fffbeb;color:#b45309;">
+                <Repeat size={11} /> {prog.needs_review} câu cần ôn
+              </span>
+            {:else if prog}
+              <span style="color:#059669;">✓ Lần gần nhất: {prog.last_score}/{prog.last_total}</span>
+            {/if}
           </p>
 
           <!-- Actions -->
@@ -203,6 +225,32 @@
           </div>
         </div>
       {/each}
+    </div>
+  {/if}
+
+  <!-- Đề của người khác đã ôn (mở qua link chia sẻ) -->
+  {#if othersStudied.length > 0}
+    <div class="space-y-3">
+      <h2 class="flex items-center gap-2 px-1 text-xs font-black uppercase tracking-widest" style="color:#94a3b8;">
+        <History size={14} /> Đề đã ôn gần đây
+      </h2>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {#each othersStudied as p (p.quiz_id)}
+          <a href="/quiz/{p.quiz_id}"
+            class="flex flex-col gap-2 rounded-[1.5rem] border p-4 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
+            style="background:#ffffff;border-color:#f1f5f9;">
+            <span class="line-clamp-2 text-sm font-black" style="color:#0f172a;">{p.title}</span>
+            <span class="flex flex-wrap items-center gap-2 text-[11px] font-bold" style="color:#94a3b8;">
+              {formatDate(p.last_attempt_at)} · {p.attempts} lượt · lần gần nhất {p.last_score}/{p.last_total}
+              {#if p.needs_review > 0}
+                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5" style="background:#fffbeb;color:#b45309;">
+                  <Repeat size={11} /> {p.needs_review} câu cần ôn
+                </span>
+              {/if}
+            </span>
+          </a>
+        {/each}
+      </div>
     </div>
   {/if}
 </div>

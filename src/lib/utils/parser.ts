@@ -41,6 +41,20 @@ const OPTION_LABEL_RE = /^([A-Ha-h])\.\s*/;
 // Dòng giải thích: "> ..." hoặc "Giải thích: ..." (không phân biệt hoa thường, có/không dấu).
 const EXPLANATION_RE = /^(?:>\s*|(?:giải thích|giai thich)\s*:\s*)/i;
 
+/**
+ * Dòng đáp án dạng "Đáp án: B", "Đáp án đúng: A, C", "dap an: b và d".
+ * Trả về các chữ cái (in hoa) hoặc null nếu không phải dòng đáp án.
+ */
+export function parseAnswerKey(line: string): string[] | null {
+  const m = line.match(/^(?:đáp án|dap an|đ\/a)(?:\s+(?:đúng|dung))?\s*[:：]\s*(.+)$/i);
+  if (!m) return null;
+  const parts = m[1]
+    .split(/[\s,;&]+/)
+    .filter(p => p && !/^(?:và|va|and)$/i.test(p));
+  if (parts.length === 0 || !parts.every(p => /^[A-Ha-h][.)]?$/.test(p))) return null;
+  return [...new Set(parts.map(p => p[0].toUpperCase()))];
+}
+
 function normaliseLine(raw: string): string {
   return raw.replace(/<br\s*\/>/gi, '\n').trim();
 }
@@ -113,6 +127,7 @@ export function parseQuizText(raw: string): ParseResult {
     let lastOptionLabelled = false;
     const explanationLines: string[] = [];
     let parsingExplanation = false;
+    const answerKey: string[] = [];
 
     block.lines.forEach((rawLine, lineIndex) => {
       const line = normaliseLine(rawLine);
@@ -122,6 +137,14 @@ export function parseQuizText(raw: string): ParseResult {
       // nên câu hỏi như "A. Einstein sinh năm nào?" không bị hiểu nhầm là đáp án.
       if (lineIndex === 0 && !starred) {
         contentLines.push(line);
+        return;
+      }
+
+      // "Đáp án: B" → đánh dấu đáp án đúng theo chữ cái
+      const key = parseAnswerKey(line);
+      if (key) {
+        answerKey.push(...key);
+        parsingExplanation = false;
         return;
       }
 
@@ -161,6 +184,13 @@ export function parseQuizText(raw: string): ParseResult {
         contentLines.push(line);
       }
     });
+
+    // Áp dụng dòng "Đáp án: …": so theo nhãn người nhập viết ("C."), không có nhãn thì theo vị trí.
+    if (answerKey.length > 0) {
+      question.options = question.options.map((o, i) =>
+        answerKey.includes(o.label || optionLabel(i)) ? { ...o, is_correct: true } : o
+      );
+    }
 
     // Luôn đánh lại nhãn theo vị trí để mỗi đáp án có nhãn duy nhất
     // (tránh chọn một đáp án mà sáng cả các đáp án khác cùng nhãn rỗng/trùng).

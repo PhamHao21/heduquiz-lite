@@ -2,7 +2,8 @@
 <script lang="ts">
   import { parseQuizText } from '$lib/utils/quizParser';
   import { saveQuiz } from '$lib/supabase/saveQuiz';
-  import { Eye, Globe, Lock, Info, ChevronLeft, ChevronRight, GraduationCap, Save, Plus, Trash2, LayoutList } from 'lucide-svelte';
+  import { Eye, Globe, Lock, Info, ChevronLeft, ChevronRight, GraduationCap, Save, Plus, Trash2, LayoutList, FileUp } from 'lucide-svelte';
+  import { IMPORT_ACCEPT, ImportError, importQuizFile } from '$lib/import/extract';
   import { authStore } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
   // import { page } from '$app/state';
@@ -34,6 +35,40 @@
   });
 
   const levels = ['Tiểu học', 'THCS', 'THPT', 'Cao đẳng', 'Đại học'];
+
+  // ── Nhập đề từ file Word / PDF / TXT (đọc ngay trên trình duyệt) ──
+  let importInput  = $state<HTMLInputElement>();
+  let importing    = $state(false);
+  let importNotice = $state<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  async function handleImport(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // cho phép chọn lại cùng file
+    if (!file) return;
+
+    importing = true;
+    importNotice = null;
+    try {
+      const result = await importQuizFile(file);
+      const imported = parseQuizText(result.text).stats;
+
+      quizRawText = quizRawText.trim() ? `${quizRawText.trimEnd()}\n\n${result.text}` : result.text;
+      if (!quizTitle.trim()) quizTitle = file.name.replace(/\.[^.]+$/, '');
+
+      const parts = [`Đã nhập ${imported.valid} câu hợp lệ từ "${file.name}"`];
+      if (imported.errorCount > 0) parts.push(`${imported.errorCount} câu cần sửa (đánh dấu đỏ)`);
+      if (result.emphasisMarked > 0) parts.push(`${result.emphasisMarked} câu nhận đáp án đúng từ chữ in đậm/gạch chân`);
+      importNotice = { kind: 'ok', text: `${parts.join(' · ')}. Hãy kiểm tra lại phần xem trước trước khi lưu.` };
+    } catch (err) {
+      importNotice = {
+        kind: 'error',
+        text: err instanceof ImportError ? err.message : `Không đọc được file: ${err instanceof Error ? err.message : err}`
+      };
+    } finally {
+      importing = false;
+    }
+  }
 
   const parsed      = $derived(parseQuizText(quizRawText));
   const questions   = $derived(parsed.questions);
@@ -231,7 +266,29 @@
           <span>Dòng trắng → câu mới</span>
           <span><code class="rounded bg-white/20 px-1">&lt;br /&gt;</code> xuống dòng</span>
           <span><code class="rounded bg-white/20 px-1">&gt; ...</code> giải thích (sau đáp án)</span>
+          <span><code class="rounded bg-white/20 px-1">Đáp án: B</code> thay cho dấu *</span>
         </div>
+      </div>
+
+      <!-- Nhập từ file -->
+      <div class="rounded-[1.5rem] border border-dashed border-slate-200 bg-white p-4">
+        <input bind:this={importInput} type="file" accept={IMPORT_ACCEPT} class="hidden" onchange={handleImport} />
+        <button
+          onclick={() => importInput?.click()}
+          disabled={importing}
+          class="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-xs font-black uppercase tracking-wider text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-60"
+        >
+          <FileUp size={15} /> {importing ? 'Đang đọc file…' : 'Nhập từ file Word / PDF / TXT'}
+        </button>
+        <p class="mt-2 text-[11px] leading-relaxed text-slate-400">
+          Đáp án đúng được nhận từ chữ <b>in đậm</b> / <u>gạch chân</u> (file Word) hoặc dòng <code>Đáp án: B</code>.
+          File được đọc ngay trên máy bạn, không gửi lên server.
+        </p>
+        {#if importNotice}
+          <p class="mt-2 rounded-xl px-3 py-2 text-xs font-medium {importNotice.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}">
+            {importNotice.text}
+          </p>
+        {/if}
       </div>
 
       <div class="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl">

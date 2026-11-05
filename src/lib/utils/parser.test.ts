@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseQuizText, toQuestionRows } from './parser';
+import { parseAnswerKey, parseQuizText, toQuestionRows } from './parser';
 
 const labelsOf = (txt: string, i = 0) =>
   parseQuizText(txt).questions[i].options.map(o => `${o.is_correct ? '*' : ''}${o.label}:${o.text}`);
@@ -126,5 +126,34 @@ describe('giải thích đáp án', () => {
   it('giải thích được lưu kèm câu hỏi', () => {
     const r = parseQuizText('Q?\n*A. x\nB. y\n> vì x');
     expect(toQuestionRows(r.questions)[0].explanation).toBe('vì x');
+  });
+});
+
+describe('dòng "Đáp án: …"', () => {
+  it('đánh dấu đáp án đúng theo chữ cái', () => {
+    const q = parseQuizText('Thủ đô?\nA. Huế\nB. Hà Nội\nC. Đà Nẵng\nĐáp án: B').questions[0];
+    expect(q.error).toBeUndefined();
+    expect(q.options.filter(o => o.is_correct).map(o => o.text)).toEqual(['Hà Nội']);
+    expect(q.multi).toBe(false);
+  });
+
+  it('nhiều đáp án, nhiều cách viết', () => {
+    for (const line of ['Đáp án đúng: A, C', 'dap an: a va c', 'ĐÁP ÁN: A; C.', 'Đáp án: A và C']) {
+      const q = parseQuizText(`Q?\nA. 1\nB. 2\nC. 3\n${line}`).questions[0];
+      expect(q.options.filter(o => o.is_correct).map(o => o.text), line).toEqual(['1', '3']);
+      expect(q.multi).toBe(true);
+    }
+  });
+
+  it('không nhầm câu văn bình thường là dòng đáp án', () => {
+    expect(parseAnswerKey('Đáp án: Hà Nội là thủ đô')).toBeNull();
+    expect(parseAnswerKey('Đáp án là gì?')).toBeNull();
+    expect(parseAnswerKey('Đáp án: B')).toEqual(['B']);
+  });
+
+  it('dùng chung với giải thích', () => {
+    const q = parseQuizText('Q?\nA. 1\nB. 2\nĐáp án: A\n> vì 1').questions[0];
+    expect(q.options[0].is_correct).toBe(true);
+    expect(q.explanation).toBe('vì 1');
   });
 });

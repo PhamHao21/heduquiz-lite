@@ -9,11 +9,14 @@
 ### 📝 Tạo đề thủ công
 - Dán văn bản thô, parser tự nhận diện câu hỏi và đáp án
 - Hỗ trợ câu một đáp án và nhiều đáp án đúng
+- **Nhập từ file Word (.docx) / PDF / TXT** ngay trên trình duyệt: tự bỏ "Câu 1:", tách đáp án chung dòng, nhận đáp án đúng từ chữ **in đậm/gạch chân** hoặc dòng `Đáp án: B`
 - Thêm **giải thích** cho câu hỏi bằng dòng `> ...` (hoặc `Giải thích: ...`) đặt sau các đáp án
 - Preview realtime từng câu khi nhập
 - Phân chia đề thành nhiều **phần** (VD: 200 câu → 5 phần × 40 câu), đặt tên từng phần
 
 ### 🗂️ Kho đề
+- Số **câu cần ôn** của từng đề và tổng số câu cần ôn
+- Mục **Đề đã ôn gần đây**: các đề của người khác bạn đã làm qua link chia sẻ
 - Quản lý toàn bộ đề đã tạo
 - Tìm kiếm theo tên hoặc môn học
 
@@ -48,10 +51,10 @@
 
 ## 🔮 Tính năng tương lai
 
-- [ ] **Chia sẻ đề** — link công khai, người khác có thể ôn không cần đăng nhập
+- [x] **Chia sẻ đề** — nút copy link / chia sẻ, đề công khai ôn được không cần đăng nhập
 - [ ] **Bảng xếp hạng** — hai loại bảng xếp hạng cho người tạo đề nhiều nhât và thi nhiều nhất
 - [ ] **Trang khám phá** — có thể xem các đề người khác đăng lên hoặc kênh của họ
-- [ ] **Import file trực tiếp** — tự parse từ Word/PDF không cần AI
+- [x] **Import file trực tiếp** — tự parse từ Word/PDF không cần AI
 - [ ] **Export đề** — xuất ra PDF, Word
 - [ ] **Nhóm học tập** — tạo lớp, chia sẻ đề trong nhóm
 
@@ -112,9 +115,10 @@ supabase/migrations/002_fix_signup_and_play_count.sql
 supabase/migrations/003_save_quiz_and_server_grading.sql
 supabase/migrations/004_keep_question_ids_on_edit.sql
 supabase/migrations/005_save_explanations.sql
+supabase/migrations/006_my_quiz_progress.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–005 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–006 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 

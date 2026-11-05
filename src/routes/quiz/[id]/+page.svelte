@@ -2,9 +2,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
   import { answeredCount, clearProgress, loadProgress, type Answer, type AttemptMode, type QuizProgress } from '$lib/utils/attempt';
-  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle, Repeat, GraduationCap, FileCheck } from 'lucide-svelte';
+  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle, Repeat, GraduationCap, FileCheck, Share2, Copy, Check, Lock, Globe } from 'lucide-svelte';
 
   const { data } = $props();
   // $derived để khi chuyển sang đề khác (cùng route /quiz/[id]) dữ liệu được cập nhật theo.
@@ -183,6 +184,61 @@
     return new Date(d).toLocaleDateString('vi-VN');
   }
 
+  // ── Chia sẻ đề ──
+  const shareUrl   = $derived(`${page.url.origin}/quiz/${quiz.id}`);
+  let shareOpen    = $state(false);
+  let copied       = $state(false);
+  let publishing   = $state(false);
+  let shareError   = $state('');
+
+  async function openShare() {
+    shareError = '';
+    // Điện thoại: dùng bảng chia sẻ của hệ điều hành (Zalo, Messenger…) nếu đề đã công khai.
+    if (quiz.is_public && typeof navigator !== 'undefined' && 'share' in navigator && matchMedia('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ title: quiz.title, text: `Ôn thi "${quiz.title}" trên HeduQuiz`, url: shareUrl });
+        return;
+      } catch {
+        // người dùng huỷ hoặc trình duyệt không cho → hiện bảng copy link
+      }
+    }
+    shareOpen = !shareOpen;
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      // trình duyệt chặn clipboard → chọn sẵn ô link để người dùng tự copy
+      (document.getElementById('share-url') as HTMLInputElement | null)?.select();
+      return;
+    }
+    copied = true;
+    setTimeout(() => { copied = false; }, 2000);
+  }
+
+  async function makePublic() {
+    publishing = true;
+    shareError = '';
+    try {
+      const res = await fetch('/api/quizzes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: quiz.id, is_public: true })
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? `Lỗi ${res.status}`);
+      await invalidateAll();
+    } catch (e) {
+      shareError = e instanceof Error ? e.message : 'Lỗi không xác định';
+    } finally {
+      publishing = false;
+    }
+  }
+
+  const ogDescription = $derived(
+    `${total} câu hỏi${quiz.subject ? ` · ${quiz.subject}` : ''} — ôn thi trắc nghiệm miễn phí trên HeduQuiz`
+  );
+
   const TIME_OPTIONS = [
     { label: 'Không giới hạn', value: 0 },
     { label: '15 phút', value: 15 },
@@ -192,7 +248,17 @@
   ];
 </script>
 
-<svelte:head><title>{quiz.title} — HeduQuiz</title></svelte:head>
+<svelte:head>
+  <title>{quiz.title} — HeduQuiz</title>
+  <meta name="description" content={ogDescription} />
+  <!-- Thẻ xem trước khi gửi link qua Messenger, Zalo, Facebook… -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="HeduQuiz" />
+  <meta property="og:title" content={quiz.title} />
+  <meta property="og:description" content={ogDescription} />
+  <meta property="og:url" content={shareUrl} />
+  <meta name="twitter:card" content="summary" />
+</svelte:head>
 
 <!--
   Tất cả các trang con đều wrap trong div có color + background explicit
@@ -253,9 +319,20 @@
           >
             Bắt đầu ôn thi →
           </button>
+          <button
+            onclick={openShare}
+            aria-label="Chia sẻ đề"
+            title="Chia sẻ đề"
+            class="flex items-center gap-2 rounded-2xl border px-4 py-4 text-sm font-bold transition-all hover:border-indigo-300"
+            style="border-color:{shareOpen ? '#a5b4fc' : '#e2e8f0'};color:#475569;background:#ffffff;"
+          >
+            <Share2 size={16} />
+          </button>
           {#if isOwner}
             <a
               href="/tao-de?edit={quiz.id}"
+              aria-label="Sửa đề"
+              title="Sửa đề"
               class="flex items-center gap-2 rounded-2xl border px-4 py-4 text-sm font-bold transition-all hover:border-indigo-300"
               style="border-color:#e2e8f0;color:#475569;background:#ffffff;"
             >
@@ -263,6 +340,50 @@
             </a>
           {/if}
         </div>
+
+        {#if shareOpen}
+          <div class="mt-4 rounded-2xl p-4" style="background:#f8fafc;border:1px solid #e2e8f0;">
+            {#if quiz.is_public}
+              <p class="mb-2 flex items-center gap-1.5 text-xs font-bold" style="color:#059669;">
+                <Globe size={13} /> Đề công khai — ai có link đều ôn được, không cần đăng nhập
+              </p>
+            {:else}
+              <p class="mb-2 flex items-center gap-1.5 text-xs font-bold" style="color:#b45309;">
+                <Lock size={13} /> Đề đang ở chế độ riêng tư — người khác mở link sẽ không xem được
+              </p>
+            {/if}
+            <div class="flex gap-2">
+              <input
+                id="share-url"
+                readonly
+                value={shareUrl}
+                onfocus={(e) => e.currentTarget.select()}
+                class="min-w-0 flex-1 rounded-xl border px-3 py-2 text-xs"
+                style="border-color:#e2e8f0;background:#ffffff;color:#334155;"
+              />
+              <button
+                onclick={copyLink}
+                class="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold"
+                style="background:{copied ? '#059669' : '#4f46e5'};color:#ffffff;"
+              >
+                {#if copied}<Check size={14} /> Đã copy{:else}<Copy size={14} /> Copy link{/if}
+              </button>
+            </div>
+            {#if !quiz.is_public && isOwner}
+              <button
+                onclick={makePublic}
+                disabled={publishing}
+                class="mt-3 flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-60"
+                style="border-color:#6ee7b7;background:#ecfdf5;color:#047857;"
+              >
+                <Globe size={13} /> {publishing ? 'Đang chuyển…' : 'Chuyển sang công khai'}
+              </button>
+            {/if}
+            {#if shareError}
+              <p class="mt-2 text-xs" style="color:#dc2626;">Không đổi được chế độ: {shareError}</p>
+            {/if}
+          </div>
+        {/if}
       </div>
 
       {#if needsReview.length > 0}

@@ -2,18 +2,26 @@
 <script lang="ts">
   import { authStore } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { NEXT_COOKIE, safeNext } from '$lib/utils/safeRedirect';
+
+  // Trang cần quay lại sau khi đăng nhập (VD: /auth?next=/tao-de?edit=...)
+  const next = $derived(safeNext(page.url.searchParams.get('next'), '/'));
 
   let loading = $state(false);
-  let error   = $state('');
+  let error   = $state(page.url.searchParams.get('error') ? 'Đăng nhập thất bại. Vui lòng thử lại.' : '');
 
   $effect(() => {
-    if (authStore.isAuthed) goto('/');
+    if (authStore.isAuthed) goto(next);
   });
 
   async function handleGoogleLogin() {
     loading = true;
     error   = '';
     try {
+      // Lưu trang cần quay lại vào cookie ngắn hạn; /auth/callback đọc và kiểm tra lại.
+      // (Không gắn ?next= vào redirectTo để khỏi phải sửa danh sách Redirect URLs trên Supabase.)
+      document.cookie = `${NEXT_COOKIE}=${encodeURIComponent(next)}; path=/; max-age=600; samesite=lax`;
       await authStore.signInWithGoogle();
     } catch {
       error   = 'Đăng nhập thất bại. Vui lòng thử lại.';

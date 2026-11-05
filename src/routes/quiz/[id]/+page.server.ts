@@ -12,11 +12,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     .eq('id', params.id)
     .single();
 
-  if (quizErr || !quiz) throw error(404, 'Không tìm thấy đề thi');
+  if (quizErr || !quiz) {
+    // RLS ẩn đề riêng tư với người chưa đăng nhập → mời đăng nhập rồi quay lại đúng đề này.
+    if (!session) throw redirect(303, `/auth?next=${encodeURIComponent(`/quiz/${params.id}`)}`);
+    throw error(404, 'Không tìm thấy đề thi');
+  }
 
-  // Chỉ owner hoặc quiz public mới được xem
+  // Chỉ owner hoặc quiz public mới được xem (RLS đã chặn, kiểm tra thêm cho chắc)
   if (!quiz.is_public && quiz.owner_id !== session?.user.id) {
-    throw redirect(303, '/auth');
+    throw error(404, 'Không tìm thấy đề thi');
   }
 
   const { data: questions } = await locals.supabase

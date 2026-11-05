@@ -1,8 +1,8 @@
 <!-- src/routes/tao-de/+page.svelte -->
 <script lang="ts">
-  import { parseQuizText, toQuestionRows } from '$lib/utils/quizParser';
+  import { parseQuizText } from '$lib/utils/quizParser';
+  import { saveQuiz } from '$lib/supabase/saveQuiz';
   import { Eye, Globe, Lock, Info, ChevronLeft, ChevronRight, GraduationCap, Save, Plus, Trash2, LayoutList } from 'lucide-svelte';
-  import { supabase } from '$lib/supabase/client';
   import { authStore } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
   // import { page } from '$app/state';
@@ -85,63 +85,16 @@
     saving = true; saveError = '';
 
     try {
-      // Bỏ câu lỗi + đánh lại position 1..n để khớp với phạm vi các phần thi.
-      const validQs = toQuestionRows(questions);
-
-      const sectionsJson = sections.length > 0 ? sections : null;
-
-      if (isEdit && editQuiz) {
-        // Thứ tự an toàn: chèn bộ câu hỏi mới TRƯỚC, thành công rồi mới xoá bộ cũ.
-        // Nếu chèn lỗi thì đề vẫn giữ nguyên câu hỏi cũ thay vì bị xoá trắng.
-        const { data: inserted, error: qErr } = await supabase.from('questions')
-          .insert(validQs.map(q => ({ ...q, quiz_id: editQuiz.id })))
-          .select('created_at');
-        if (qErr) throw qErr;
-        const newCreatedAt = inserted?.[0]?.created_at;
-        if (!newCreatedAt) throw new Error('Không lưu được câu hỏi mới');
-
-        // Mọi dòng của một lệnh insert có cùng created_at (now() của transaction),
-        // nên các câu hỏi cũ là những dòng có created_at nhỏ hơn.
-        const { error: dErr } = await supabase.from('questions')
-          .delete()
-          .eq('quiz_id', editQuiz.id)
-          .lt('created_at', newCreatedAt);
-        if (dErr) throw dErr;
-
-        const { error: uErr } = await supabase
-          .from('quizzes')
-          .update({
-            title: quizTitle.trim(),
-            subject: educationLevel,
-            raw_text: quizRawText,
-            is_public: isPublic,
-            sections: sectionsJson
-          })
-          .eq('id', editQuiz.id);
-        if (uErr) throw uErr;
-
-        goto(`/quiz/${editQuiz.id}`);
-      } else {
-        const { data: quiz, error: qErr } = await supabase
-          .from('quizzes')
-          .insert({
-            owner_id: authStore.user.id,
-            title: quizTitle.trim(),
-            subject: educationLevel,
-            raw_text: quizRawText,
-            is_public: isPublic,
-            sections: sectionsJson
-          })
-          .select('id').single();
-        if (qErr || !quiz) throw qErr ?? new Error('Lỗi tạo quiz');
-
-        if (validQs.length > 0) {
-          const { error: qsErr } = await supabase.from('questions')
-            .insert(validQs.map(q => ({ ...q, quiz_id: quiz.id })));
-          if (qsErr) throw qsErr;
-        }
-        goto(`/quiz/${quiz.id}`);
-      }
+      const id = await saveQuiz({
+        id: isEdit && editQuiz ? editQuiz.id : null,
+        title: quizTitle,
+        subject: educationLevel,
+        rawText: quizRawText,
+        isPublic,
+        sections,
+        questions
+      });
+      goto(`/quiz/${id}`);
     } catch (e: unknown) {
       saveError = e instanceof Error ? e.message : 'Lỗi không xác định';
       saving = false;

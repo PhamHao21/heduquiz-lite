@@ -1,56 +1,74 @@
 <!-- src/lib/components/quiz/QuizEngine.svelte -->
 <script lang="ts">
+  import { onMount, untrack } from 'svelte';
   import Timer from './Timer.svelte';
-  import { shuffle } from '$lib/utils/shuffle';
-
-  interface Option   { label: string; text: string; is_correct: boolean }
-  interface Question { id: string; position: number; content: string; options: Option[]; multi: boolean }
-  interface Answer   { question_id: string; chosen: string[]; correct: string[]; is_correct: boolean }
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
+  import {
+    arrangeQuestions, arrangementOf, clearProgress, displayLetter, gradeAttempt, saveProgress,
+    type Answer, type Question, type QuizProgress
+  } from '$lib/utils/attempt';
 
   interface Props {
+    quizId: string;
+    sectionId?: string | null;
     questions: Question[];
+    /** giới hạn thời gian (giây), 0 = không giới hạn */
     timeLimit?: number;
     shuffleQuestions?: boolean;
     shuffleOptions?: boolean;
+    /** tiến trình đã lưu để làm tiếp sau khi refresh/đóng tab */
+    resume?: QuizProgress | null;
     onComplete: (answers: Answer[], timeSpent: number) => void;
   }
 
-  const {
-    questions: rawQuestions,
-    timeLimit        = 0,
-    shuffleQuestions = true,
-    shuffleOptions   = true,
-    onComplete
-  }: Props = $props();
+  const props: Props = $props();
 
-  // Chuẩn hoá dữ liệu đề đã lưu từ trước bản sửa parser: đáp án thiếu nhãn hoặc trùng nhãn
-  // được đánh lại A, B, C… (việc chọn/chấm điểm dựa vào nhãn nên nhãn phải duy nhất), và
-  // câu có từ 2 đáp án đúng luôn được coi là câu nhiều đáp án.
-  function normalise(q: Question): Question {
-    const labels = q.options.map(o => o.label);
-    const labelsOk = labels.every(Boolean) && new Set(labels).size === labels.length;
-    const options = labelsOk
-      ? q.options
-      : q.options.map((o, i) => ({ ...o, label: String.fromCharCode(65 + i) }));
-    return { ...q, options, multi: q.multi || options.filter(o => o.is_correct).length > 1 };
-  }
+  // Ảnh chụp các prop lúc bắt đầu lượt làm bài: đổi prop giữa chừng không làm xáo lại đề.
+  const init = untrack(() => ({ ...props }));
+  const resume = init.resume ?? null;
 
-  const questions: Question[] = (() => {
-    const base = rawQuestions.map(normalise);
-    const qs = shuffleQuestions ? shuffle(base) : base;
-    return shuffleOptions ? qs.map(q => ({ ...q, options: shuffle([...q.options]) })) : qs;
-  })();
+  const questions: Question[] = arrangeQuestions(
+    init.questions,
+    { shuffleQuestions: init.shuffleQuestions ?? true, shuffleOptions: init.shuffleOptions ?? true },
+    resume
+  );
+  const total = questions.length;
+  const timeLimit = init.timeLimit ?? 0;
+  const startedAt = resume?.startedAt ?? Date.now();
+  const endsAt: number | null = resume ? resume.endsAt : timeLimit > 0 ? startedAt + timeLimit * 1000 : null;
 
-  let current   = $state(0);
-  let chosen    = $state<Record<string, string[]>>({});
-  let submitted = $state(false);
-  const startedAt = Date.now();
+  let current     = $state(Math.min(Math.max(resume?.current ?? 0, 0), Math.max(total - 1, 0)));
+  let chosen      = $state<Record<string, string[]>>(resume?.chosen ?? {});
+  let submitted   = $state(false);
+  let confirmOpen = $state(false);
 
   const q             = $derived(questions[current]);
-  const total         = questions.length;
   const pct           = $derived(Math.round(((current + 1) / total) * 100));
   const isLast        = $derived(current === total - 1);
   const currentChosen = $derived(chosen[q?.id] ?? []);
+  const unanswered    = $derived(questions.filter(item => !(chosen[item.id]?.length)).length);
+
+  // Tự lưu tiến trình mỗi khi chọn đáp án / chuyển câu → refresh hay lỡ đóng tab vẫn làm tiếp được.
+  const arrangement = arrangementOf(questions);
+  $effect(() => {
+    if (submitted) return;
+    saveProgress({
+      v: 1,
+      quizId: init.quizId,
+      sectionId: init.sectionId ?? null,
+      ...arrangement,
+      chosen,
+      current,
+      startedAt,
+      endsAt,
+      savedAt: Date.now()
+    });
+  });
+
+  // Làm tiếp một bài đã hết giờ trong lúc tab bị đóng → nộp luôn.
+  onMount(() => {
+    if (endsAt !== null && Date.now() >= endsAt) submit();
+  });
 
   function toggleOption(label: string) {
     if (submitted) return;
@@ -63,21 +81,21 @@
     };
   }
 
-  function handleSubmit() {
+  /** Bấm "Nộp bài": còn câu chưa làm thì hỏi lại trước. */
+  function requestSubmit() {
+    if (submitted) return;
+    if (unanswered > 0) confirmOpen = true;
+    else submit();
+  }
+
+  function submit() {
     if (submitted) return;
     submitted = true;
-    const timeSpent = Math.round((Date.now() - startedAt) / 1000);
-    const answers: Answer[] = questions.map(qItem => {
-      const correctLabels = qItem.options.filter(o => o.is_correct).map(o => o.label);
-      const chosenLabels  = chosen[qItem.id] ?? [];
-      return {
-        question_id: qItem.id,
-        chosen:  chosenLabels,
-        correct: correctLabels,
-        is_correct: correctLabels.length === chosenLabels.length && correctLabels.every(l => chosenLabels.includes(l))
-      };
-    });
-    onComplete(answers, timeSpent);
+    confirmOpen = false;
+    clearProgress(init.quizId);
+    const finishedAt = endsAt !== null ? Math.min(Date.now(), endsAt) : Date.now();
+    const timeSpent = Math.max(0, Math.round((finishedAt - startedAt) / 1000));
+    props.onComplete(gradeAttempt(questions, chosen), timeSpent);
   }
 
   // Dùng inline style thay vì Tailwind text-* để không bị body {color: slate-100} ghi đè
@@ -106,6 +124,16 @@
   }
 </script>
 
+<ConfirmModal
+  open={confirmOpen}
+  title="Nộp bài?"
+  message={`Bạn còn ${unanswered} câu chưa trả lời. Câu bỏ trống sẽ bị tính sai.`}
+  confirmLabel="Nộp luôn"
+  cancelLabel="Làm tiếp"
+  onConfirm={submit}
+  onCancel={() => { confirmOpen = false; }}
+/>
+
 <!--
   Wrapper dùng style inline buộc màu chữ + nền,
   tránh bị app.css body { color: slate-100 } làm chữ trắng trên nền trắng
@@ -116,15 +144,20 @@
   <div class="flex items-center gap-4">
     <div class="flex-1">
       <div class="mb-1 flex justify-between text-xs" style="color:#64748b;">
-        <span>Câu {current + 1} / {total}</span>
-        <span>{pct}%</span>
+        <span>Câu {current + 1} / {total} · đã làm {total - unanswered}</span>
+        <button
+          onclick={requestSubmit}
+          disabled={submitted}
+          class="font-semibold underline-offset-2 hover:underline"
+          style="color:#4f46e5;"
+        >Nộp bài</button>
       </div>
       <div class="h-2 overflow-hidden rounded-full" style="background:#e2e8f0;">
         <div class="h-full rounded-full transition-all duration-300" style="width:{pct}%;background:#6366f1;"></div>
       </div>
     </div>
-    {#if timeLimit > 0}
-      <Timer seconds={timeLimit} onExpire={handleSubmit} />
+    {#if endsAt !== null}
+      <Timer {endsAt} totalSeconds={timeLimit || Math.round((endsAt - startedAt) / 1000)} onExpire={submit} />
     {/if}
   </div>
 
@@ -132,7 +165,7 @@
   <div class="rounded-xl p-6 shadow-sm" style="background:#ffffff;border:1px solid #e2e8f0;">
     <div class="mb-3 flex items-center gap-2">
       <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" style="background:#eef2ff;color:#4338ca;">
-        {q.position}
+        Câu {current + 1}
       </span>
       {#if q.multi}
         <span class="rounded-full px-2 py-0.5 text-xs font-semibold" style="background:#fef3c7;color:#92400e;">
@@ -147,18 +180,19 @@
 
   <!-- Options grid -->
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-    {#each q.options as opt (opt.label)}
+    {#each q.options as opt, oi (opt.label)}
       <button
         onclick={() => toggleOption(opt.label)}
         disabled={submitted}
         class="flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left text-sm transition-all"
         style={optionStyle(opt.label, opt.is_correct)}
       >
+        <!-- Chữ cái theo vị trí trên màn hình (A, B, C…), kể cả khi đáp án đã bị đảo -->
         <span
           class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-all"
           style={badgeStyle(opt.label, opt.is_correct)}
         >
-          {opt.label || '·'}
+          {displayLetter(oi)}
         </span>
         <span class="flex-1 whitespace-pre-line font-medium">{opt.text}</span>
         {#if submitted && opt.is_correct}
@@ -171,18 +205,19 @@
   </div>
 
   <!-- Navigation -->
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between gap-3">
     <button
       onclick={() => { if (current > 0) current--; }}
       disabled={current === 0}
-      class="rounded-lg border px-4 py-2 text-sm font-medium transition disabled:opacity-40"
+      class="shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition disabled:opacity-40"
       style="background:#ffffff;border-color:#e2e8f0;color:#475569;"
     >← Trước</button>
 
     <div class="flex flex-wrap justify-center gap-1.5">
-      {#each questions as qDot, i (i)}
+      {#each questions as qDot, i (qDot.id)}
         <button
           onclick={() => { current = i; }}
+          aria-label="Câu {i + 1}{chosen[qDot.id]?.length ? ' (đã làm)' : ''}"
           class="h-2.5 w-2.5 rounded-full transition-all"
           style="
             transform: {i === current ? 'scale(1.25)' : 'scale(1)'};
@@ -194,15 +229,15 @@
 
     {#if isLast}
       <button
-        onclick={handleSubmit}
+        onclick={requestSubmit}
         disabled={submitted}
-        class="rounded-lg px-5 py-2 text-sm font-semibold shadow transition disabled:opacity-50"
+        class="shrink-0 rounded-lg px-5 py-2 text-sm font-semibold shadow transition disabled:opacity-50"
         style="background:#4f46e5;color:#ffffff;"
       >Nộp bài</button>
     {:else}
       <button
         onclick={() => { if (current < total - 1) current++; }}
-        class="rounded-lg border px-4 py-2 text-sm font-medium transition"
+        class="shrink-0 rounded-lg border px-4 py-2 text-sm font-medium transition"
         style="background:#ffffff;border-color:#e2e8f0;color:#475569;"
       >Tiếp →</button>
     {/if}

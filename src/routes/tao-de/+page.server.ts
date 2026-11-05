@@ -4,7 +4,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const { session } = await locals.safeGetSession();
-  if (!session) throw redirect(303, `/auth?next=${url.pathname}`);
+  if (!session) throw redirect(303, `/auth?next=${encodeURIComponent(url.pathname + url.search)}`);
 
   const editId = url.searchParams.get('edit');
   if (editId) {

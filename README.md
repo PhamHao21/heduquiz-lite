@@ -21,6 +21,8 @@
 - Tùy chọn **đảo câu hỏi** và **đảo đáp án**
 - **Giới hạn thời gian**: 15 / 30 / 45 / 60 phút hoặc không giới hạn
 - Xem kết quả chi tiết từng câu sau khi nộp bài
+- **Tự lưu bài đang làm** — refresh hay lỡ đóng tab vẫn làm tiếp được (kể cả đồng hồ đếm giờ)
+- Cảnh báo khi nộp bài mà còn câu chưa làm
 - Lưu lịch sử ôn thi (đăng nhập)
 
 ### 👤 Tài khoản
@@ -54,7 +56,7 @@
 | Framework | [SvelteKit 2](https://kit.svelte.dev) + Svelte 5 (Runes) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
 | Backend / DB | [Supabase](https://supabase.com) (PostgreSQL + Auth + RLS) |
-| AI | [Google Gemini 2.0 Flash](https://ai.google.dev) |
+| AI | [Google Gemini](https://ai.google.dev) (mặc định `gemini-2.5-flash`, đổi qua biến `GEMINI_MODEL`) |
 | Deploy | [Vercel](https://vercel.com) |
 | Icons | [Lucide Svelte](https://lucide.dev) |
 | Language | TypeScript |
@@ -99,7 +101,10 @@ Vào **Supabase → SQL Editor**, paste toàn bộ nội dung file:
 ```
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_fix_signup_and_play_count.sql
+supabase/migrations/003_save_quiz_and_server_grading.sql
 ```
+
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002, 003 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 
@@ -171,6 +176,9 @@ src/
 
 - **Row Level Security (RLS)** bật trên toàn bộ bảng Supabase
 - Mọi API route đều verify session server-side qua `safeGetSession()`
+- **Chấm điểm phía server** (`submit_attempt`): client chỉ gửi đáp án đã chọn, không tự gửi điểm
+- Lưu đề + câu hỏi trong **một transaction** (`save_quiz`): lỗi giữa chừng không làm mất dữ liệu
+- Chặn open redirect ở bước đăng nhập (`safeNext`)
 - Dùng `getUser()` thay vì `getSession()` để đảm bảo token được verify với Supabase Auth server
 - Biến môi trường nhạy cảm (`GEMINI_API_KEY`) chỉ expose phía server
 

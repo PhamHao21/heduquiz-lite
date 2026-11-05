@@ -1,10 +1,13 @@
 // src/routes/api/generate/+server.ts
 import { json, error } from '@sveltejs/kit';
-import { GEMINI_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// gemini-1.5-flash đã bị Google ngừng hỗ trợ. Có thể đổi model qua biến môi trường
+// GEMINI_MODEL trên Vercel mà không cần sửa code.
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const geminiUrl = () =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL || DEFAULT_MODEL}:generateContent`;
 
 const MAX_QUESTIONS  = 100;
 const MAX_B64_LEN    = 14_000_000; // ~10MB decoded
@@ -66,6 +69,7 @@ Generate now:`;
 export const POST: RequestHandler = async ({ request, locals }) => {
   const { session } = await locals.safeGetSession();
   if (!session) throw error(401, 'Unauthorized');
+  if (!env.GEMINI_API_KEY) throw error(503, 'Tính năng AI chưa được cấu hình (thiếu GEMINI_API_KEY)');
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== 'object') throw error(400, 'Invalid JSON');
@@ -118,9 +122,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 async function callGemini(contents: unknown[], temperature: number): Promise<string> {
-  const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+  // Gửi key qua header thay vì query string để key không lọt vào log URL.
+  const res = await fetch(geminiUrl(), {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY ?? '' },
     body: JSON.stringify({
       contents,
       generationConfig: { temperature, maxOutputTokens: 8192 }

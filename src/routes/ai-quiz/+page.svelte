@@ -3,8 +3,8 @@
   import { GraduationCap, Globe, Lock, Upload, X, FileText, Sparkles, Plus, Trash2 } from 'lucide-svelte';
   import { authStore } from '$lib/stores/auth.svelte';
   import { goto } from '$app/navigation';
-  import { supabase } from '$lib/supabase/client';
-  import { toQuestionRows } from '$lib/utils/quizParser';
+  import { parseQuizText } from '$lib/utils/quizParser';
+  import { saveQuiz } from '$lib/supabase/saveQuiz';
 
   type Level = typeof levels[number];
   type Mode  = 'topic' | 'file';
@@ -35,7 +35,7 @@
   // ── File state ────────────────────────────────────────────
   let uploadedFile    = $state<File | null>(null);
   let dragOver        = $state(false);
-  let fileInput: HTMLInputElement;
+  let fileInput = $state<HTMLInputElement>();
 
   // ── Sections state ────────────────────────────────────────
   interface Section { id: string; name: string; from: number; to: number }
@@ -164,36 +164,20 @@
       }
 
       progress = 'Đang xử lý câu hỏi…';
-      const parseRes = await fetch('/api/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      const parsed = await parseRes.json();
+      const parsed = parseQuizText(text);
+      if (parsed.stats.valid === 0) throw new Error('AI không trả về câu hỏi hợp lệ nào, hãy thử lại.');
 
       progress = 'Đang lưu đề thi…';
-      const sectionsJson = sections.length > 0 ? sections : null;
+      const id = await saveQuiz({
+        title: quizName,
+        subject: subject || level,
+        rawText: text,
+        isPublic,
+        sections,
+        questions: parsed.questions
+      });
 
-      const { data: quiz, error: qErr } = await supabase
-        .from('quizzes')
-        .insert({
-          owner_id: authStore.user.id,
-          title:    quizName.trim(),
-          subject:  subject || level,
-          raw_text: text,
-          is_public: isPublic,
-          sections: sectionsJson
-        })
-        .select('id').single();
-      if (qErr || !quiz) throw qErr ?? new Error('Lỗi tạo quiz');
-
-      const validQs = toQuestionRows(parsed.questions).map(q => ({ ...q, quiz_id: quiz.id }));
-      if (validQs.length > 0) {
-        const { error: qsErr } = await supabase.from('questions').insert(validQs);
-        if (qsErr) throw qsErr;
-      }
-
-      goto(`/quiz/${quiz.id}`);
+      goto(`/quiz/${id}`);
     } catch (e: unknown) {
       error   = e instanceof Error ? e.message : 'Lỗi không xác định';
       loading = false; progress = '';
@@ -259,10 +243,10 @@
     <!-- Upload file (chỉ mode=file) -->
     {#if mode === 'file'}
       <div class="space-y-1.5">
-        <label class="text-[10px] font-black uppercase tracking-widest" style="color:#94a3b8;">
+        <p class="text-[10px] font-black uppercase tracking-widest" style="color:#94a3b8;">
           File tài liệu <span style="color:#f43f5e;">*</span>
           <span class="font-medium normal-case" style="color:#94a3b8;"> (PDF, DOC, DOCX — tối đa 10MB)</span>
-        </label>
+        </p>
 
         {#if uploadedFile}
           <div class="flex items-center gap-3 rounded-2xl px-4 py-3" style="background:#eef2ff;border:2px solid #c7d2fe;">
@@ -282,8 +266,8 @@
             ondragover={(e) => { e.preventDefault(); dragOver = true; }}
             ondragleave={() => { dragOver = false; }}
             ondrop={onDrop}
-            onclick={() => fileInput.click()}
-            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); }}
+            onclick={() => fileInput?.click()}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInput?.click(); }}
             tabindex="0" role="button" aria-label="Chọn file"
           >
             <div class="rounded-2xl p-3 shadow-sm" style="background:#ffffff;">

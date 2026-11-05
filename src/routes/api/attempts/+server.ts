@@ -1,33 +1,44 @@
 // src/routes/api/attempts/+server.ts
-// Gọi khi nộp bài: tăng lượt ôn của đề và lưu lịch sử làm bài (nếu đã đăng nhập)
+// Nộp bài: server chấm điểm từ đáp án đúng trong DB (RPC submit_attempt, migration 003),
+// tăng lượt ôn, và lưu lịch sử nếu đã đăng nhập.
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+const MAX_ANSWERS = 2000;
+const MAX_CHOICES = 26;
+
 export const POST: RequestHandler = async ({ request, locals }) => {
-  const { session } = await locals.safeGetSession();
+  // Gọi để Supabase client nạp/làm mới phiên đăng nhập từ cookie (khách thì bỏ qua).
+  await locals.safeGetSession();
 
   const body = await request.json().catch(() => null);
-  if (!body?.quiz_id || typeof body.quiz_id !== 'string') throw error(400, 'Missing quiz_id');
+  if (!body || typeof body.quiz_id !== 'string' || !Array.isArray(body.answers)) {
+    throw error(400, 'Dữ liệu bài làm không hợp lệ');
+  }
 
-  // Tăng play_count nguyên tử qua RPC (security definer, xem migration 002).
-  // Không chặn việc lưu kết quả nếu RPC lỗi (VD: chưa chạy migration).
-  const { error: rpcErr } = await locals.supabase.rpc('increment_play_count', { p_quiz_id: body.quiz_id });
-  if (rpcErr) console.error('increment_play_count failed:', rpcErr.message);
+  // Chỉ gửi lên đúng những gì cần để chấm: id câu hỏi + nhãn đã chọn.
+  const answers = (body.answers as unknown[]).slice(0, MAX_ANSWERS).map(a => {
+    const item = (a ?? {}) as { question_id?: unknown; chosen?: unknown };
+    return {
+      question_id: String(item.question_id ?? ''),
+      chosen: Array.isArray(item.chosen) ? item.chosen.slice(0, MAX_CHOICES).map(String) : []
+    };
+  });
+  const timeSpent = Number.isFinite(body.time_spent) ? Math.max(0, Math.round(body.time_spent)) : null;
 
-  // Khách chưa đăng nhập: chỉ tính lượt ôn, không lưu kết quả.
-  if (!session) return json({ ok: true, saved: false });
-
-  const { error: err } = await locals.supabase.from('results').insert({
-    quiz_id:    body.quiz_id,
-    user_id:    session.user.id,
-    score:      body.score   ?? 0,
-    total:      body.total   ?? 0,
-    time_spent: body.time_spent ?? null,
-    answers:    body.answers ?? []
+  const { data, error: err } = await locals.supabase.rpc('submit_attempt', {
+    p_quiz_id: body.quiz_id,
+    p_answers: answers,
+    p_time_spent: timeSpent
   });
 
-  if (err) throw error(500, err.message);
-  return json({ ok: true, saved: true });
+  if (err) {
+    if (err.code === 'P0002' || err.code === '22P02') throw error(404, 'Không tìm thấy đề thi');
+    if (err.code === '22023') throw error(400, err.message);
+    console.error('submit_attempt failed:', err);
+    throw error(500, 'Không lưu được kết quả');
+  }
+  return json(data as { score: number; total: number; saved: boolean });
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {

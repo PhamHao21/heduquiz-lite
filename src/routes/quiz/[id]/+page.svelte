@@ -1,25 +1,52 @@
 <!-- src/routes/quiz/[id]/+page.svelte -->
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import QuizEngine from '$lib/components/quiz/QuizEngine.svelte';
-  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer } from 'lucide-svelte';
+  import { answeredCount, clearProgress, loadProgress, type Answer, type QuizProgress } from '$lib/utils/attempt';
+  import { Clock, RotateCcw, Trophy, ChevronRight, Edit, Shuffle, Timer, PlayCircle } from 'lucide-svelte';
 
   const { data } = $props();
-  const { quiz, questions, history, isOwner } = data;
+  // $derived để khi chuyển sang đề khác (cùng route /quiz/[id]) dữ liệu được cập nhật theo.
+  const quiz      = $derived(data.quiz);
+  const questions = $derived(data.questions);
+  const history   = $derived(data.history);
+  const isOwner   = $derived(data.isOwner);
 
-  type Answer  = { question_id: string; chosen: string[]; correct: string[]; is_correct: boolean };
   type Phase   = 'intro' | 'options' | 'playing' | 'result';
+  type SaveState = 'idle' | 'saving' | 'saved' | 'guest' | 'error';
   interface Section { id: string; name: string; from: number; to: number }
 
   let phase         = $state<Phase>('intro');
   let resultData    = $state<{ answers: Answer[]; timeSpent: number } | null>(null);
+  let saveState     = $state<SaveState>('idle');
+  let saveMessage   = $state('');
 
   let shuffleQ      = $state(true);
   let shuffleOpts   = $state(true);
   let timeLimitMins = $state(0);
   let selectedSec   = $state<string | null>(null);
 
-  const sections: Section[] = (quiz.sections as Section[]) ?? [];
-  const hasSection = sections.length > 0;
+  /** bài đang làm dở được lưu trên máy này */
+  let savedProgress = $state<QuizProgress | null>(null);
+  /** tiến trình truyền vào QuizEngine khi bấm "Làm tiếp" */
+  let resume        = $state<QuizProgress | null>(null);
+
+  // Mỗi khi mở một đề (kể cả chuyển từ đề này sang đề khác): về màn hình giới thiệu
+  // và kiểm tra xem có bài đang làm dở không. Chạy ở trình duyệt nên đọc được localStorage.
+  $effect(() => {
+    const id = quiz.id;
+    untrack(() => {
+      phase = 'intro';
+      resultData = null;
+      selectedSec = null;
+      resume = null;
+      savedProgress = loadProgress(id);
+    });
+  });
+
+  const sections   = $derived((quiz.sections as Section[] | null) ?? []);
+  const hasSection = $derived(sections.length > 0);
 
   // Phạm vi "câu X → Y" của phần thi tính theo thứ tự câu trong đề (1..n), không theo
   // cột position — dữ liệu cũ có thể có position bị nhảy số khi đề từng có câu lỗi.
@@ -35,9 +62,9 @@
   });
 
   const timeLimitSecs = $derived(timeLimitMins * 60);
-  const total  = questions.length;
+  const total  = $derived(questions.length);
   const score  = $derived(resultData?.answers.filter(a => a.is_correct).length ?? 0);
-  const pct    = $derived(resultData ? Math.round((score / resultData.answers.length) * 100) : 0);
+  const pct    = $derived(resultData && resultData.answers.length ? Math.round((score / resultData.answers.length) * 100) : 0);
 
   const grade = $derived(() => {
     if (pct >= 90) return { text: 'Xuất sắc 🏆', color: '#4338ca' };
@@ -48,19 +75,58 @@
 
   async function handleComplete(answers: Answer[], timeSpent: number) {
     resultData = { answers, timeSpent };
+    savedProgress = null;
+    resume = null;
     phase = 'result';
-    // Gửi cho cả khách: server tăng lượt ôn, và chỉ lưu kết quả khi đã đăng nhập.
-    await fetch('/api/attempts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        quiz_id: quiz.id, score: answers.filter(a => a.is_correct).length,
-        total: answers.length, time_spent: timeSpent, answers
-      })
-    }).catch(() => {});
+    saveState = 'saving';
+    saveMessage = '';
+
+    // Server chấm lại từ đáp án đúng trong DB, tăng lượt ôn, lưu lịch sử nếu đã đăng nhập.
+    try {
+      const res = await fetch('/api/attempts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quiz_id: quiz.id,
+          time_spent: timeSpent,
+          answers: answers.map(a => ({ question_id: a.question_id, chosen: a.chosen }))
+        })
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? `Lỗi ${res.status}`);
+      const body = (await res.json()) as { saved?: boolean };
+      saveState = body.saved ? 'saved' : 'guest';
+      if (body.saved) await invalidateAll(); // cập nhật lịch sử ôn thi + lượt ôn
+    } catch (e) {
+      saveState = 'error';
+      saveMessage = e instanceof Error ? e.message : 'Lỗi không xác định';
+    }
   }
 
-  function startQuiz() { resultData = null; phase = 'playing'; }
+  function startQuiz() {
+    clearProgress(quiz.id);
+    savedProgress = null;
+    resume = null;
+    resultData = null;
+    phase = 'playing';
+  }
+
+  function continueQuiz() {
+    if (!savedProgress) return;
+    resume = savedProgress;
+    selectedSec = savedProgress.sectionId;
+    resultData = null;
+    phase = 'playing';
+  }
+
+  function discardProgress() {
+    clearProgress(quiz.id);
+    savedProgress = null;
+  }
+
+  /** Câu hỏi cho lượt làm bài đang tiếp tục: đúng tập câu đã lưu. */
+  const resumeQuestions = $derived(
+    resume ? questions.filter((q: { id: string }) => resume!.order.includes(q.id)) : []
+  );
 
   function formatTime(s: number) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -105,6 +171,29 @@
           <span class="flex items-center gap-1.5"><Clock size={14} /> {total} câu hỏi</span>
           <span class="flex items-center gap-1.5"><Trophy size={14} /> {quiz.play_count} lượt ôn</span>
         </div>
+
+        {#if savedProgress}
+          <div class="mt-6 rounded-2xl p-4" style="background:#eef2ff;border:1px solid #c7d2fe;">
+            <p class="text-sm font-bold" style="color:#3730a3;">Bạn có bài đang làm dở</p>
+            <p class="mt-0.5 text-xs" style="color:#4f46e5;">
+              Đã làm {answeredCount(savedProgress)}/{savedProgress.order.length} câu{savedProgress.endsAt
+                ? ` · ${savedProgress.endsAt > Date.now() ? `còn ${formatTime(Math.ceil((savedProgress.endsAt - Date.now()) / 1000))}` : 'đã hết giờ'}`
+                : ''}
+            </p>
+            <div class="mt-3 flex gap-2">
+              <button
+                onclick={continueQuiz}
+                class="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider"
+                style="background:#4f46e5;color:#ffffff;"
+              ><PlayCircle size={14} /> Làm tiếp</button>
+              <button
+                onclick={discardProgress}
+                class="rounded-xl border px-4 py-2 text-xs font-bold"
+                style="border-color:#c7d2fe;background:#ffffff;color:#4338ca;"
+              >Bỏ bài này</button>
+            </div>
+          </div>
+        {/if}
 
         <div class="mt-6 flex gap-3">
           <button
@@ -242,10 +331,13 @@
   <!-- ── PLAYING ── -->
   {:else if phase === 'playing'}
     <QuizEngine
-      questions={activeQuestions()}
+      quizId={quiz.id}
+      sectionId={selectedSec}
+      questions={resume ? resumeQuestions : activeQuestions()}
       timeLimit={timeLimitSecs}
       shuffleQuestions={shuffleQ}
       shuffleOptions={shuffleOpts}
+      {resume}
       onComplete={handleComplete}
     />
 
@@ -263,6 +355,14 @@
         <div class="mx-auto mt-5 h-3 max-w-xs overflow-hidden rounded-full" style="background:#e2e8f0;">
           <div class="h-full rounded-full transition-all" style="width:{pct}%;background:#6366f1;"></div>
         </div>
+
+        <p class="mt-3 text-xs" style="color:{saveState === 'error' ? '#dc2626' : '#94a3b8'};">
+          {#if saveState === 'saving'}Đang lưu kết quả…
+          {:else if saveState === 'saved'}✓ Đã lưu vào lịch sử ôn thi
+          {:else if saveState === 'guest'}Đăng nhập để lưu lịch sử ôn thi
+          {:else if saveState === 'error'}Không lưu được kết quả: {saveMessage}
+          {/if}
+        </p>
 
         <div class="mt-6 flex justify-center gap-3">
           <!-- Fix nút Làm lại: text màu tối explicit -->
@@ -295,11 +395,13 @@
                 style="color:{ans.is_correct ? '#059669' : '#dc2626'};">
                 {ans.is_correct ? '✓ Đúng' : '✗ Sai'} — Câu {i + 1}
               </p>
-              <p class="text-sm font-medium" style="color:#1e293b;">{q.content}</p>
+              <p class="whitespace-pre-line text-sm font-medium" style="color:#1e293b;">{q.content}</p>
               {#if !ans.is_correct}
                 <p class="mt-2 text-xs" style="color:#64748b;">
-                  Bạn chọn: <span class="font-bold" style="color:#dc2626;">{ans.chosen.join(', ') || '(bỏ trống)'}</span>
-                  · Đúng: <span class="font-bold" style="color:#059669;">{ans.correct.join(', ')}</span>
+                  Bạn chọn: <span class="font-bold" style="color:#dc2626;">{ans.chosenText.join('; ') || '(bỏ trống)'}</span>
+                </p>
+                <p class="mt-0.5 text-xs" style="color:#64748b;">
+                  Đúng: <span class="font-bold" style="color:#059669;">{ans.correctText.join('; ')}</span>
                 </p>
               {/if}
             </div>

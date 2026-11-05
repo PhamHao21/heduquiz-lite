@@ -32,23 +32,39 @@
     return new Date(d).toLocaleDateString('vi-VN');
   }
 
-  async function togglePublic(q: Quiz) {
-    await fetch('/api/quizzes', {
-      method: 'PATCH',
+  let actionError = $state('');
+
+  async function callApi(method: 'PATCH' | 'DELETE', body: Record<string, unknown>) {
+    const res = await fetch('/api/quizzes', {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: q.id, is_public: !q.is_public })
+      body: JSON.stringify(body)
     });
+    if (!res.ok) {
+      const msg = (await res.json().catch(() => null))?.message;
+      throw new Error(msg ?? `Lỗi ${res.status}`);
+    }
+  }
+
+  async function togglePublic(q: Quiz) {
+    actionError = '';
+    try {
+      await callApi('PATCH', { id: q.id, is_public: !q.is_public });
+    } catch (e) {
+      actionError = `Không đổi được chế độ hiển thị: ${e instanceof Error ? e.message : e}`;
+    }
     await invalidateAll();
   }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
     deleting = true;
-    await fetch('/api/quizzes', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: deleteTarget.id })
-    });
+    actionError = '';
+    try {
+      await callApi('DELETE', { id: deleteTarget.id });
+    } catch (e) {
+      actionError = `Không xoá được đề: ${e instanceof Error ? e.message : e}`;
+    }
     deleting     = false;
     deleteTarget = null;
     await invalidateAll();
@@ -70,6 +86,10 @@
 />
 
 <div class="mx-auto max-w-5xl space-y-7" style="color:#1e293b;">
+
+  {#if actionError}
+    <p class="rounded-2xl px-5 py-3 text-sm font-medium" style="background:#fef2f2;color:#dc2626;">{actionError}</p>
+  {/if}
 
   <!-- Greeting + stats -->
   <div class="rounded-[2.5rem] bg-gradient-to-br from-indigo-600 to-indigo-800 p-7 text-white shadow-xl shadow-indigo-100">

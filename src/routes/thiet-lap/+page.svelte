@@ -4,7 +4,7 @@
   import { goto } from '$app/navigation';
 
   $effect(() => {
-    if (!authStore.loading && !authStore.isAuthed) goto('/auth');
+    if (!authStore.loading && !authStore.isAuthed) goto('/auth?next=/thiet-lap');
   });
 
   let displayName = $state(authStore.user?.user_metadata?.full_name ?? '');

@@ -1,29 +1,42 @@
 <!-- src/lib/components/quiz/Timer.svelte -->
 <script lang="ts">
   interface Props {
-    seconds: number;        // total seconds (read-only initial)
+    /** mốc hết giờ (ms, Date.now()) */
+    endsAt: number;
+    /** tổng thời gian (giây), chỉ dùng để vẽ vòng tiến độ */
+    totalSeconds: number;
     onExpire?: () => void;
   }
 
-  const { seconds, onExpire }: Props = $props();
+  const { endsAt, totalSeconds, onExpire }: Props = $props();
 
-  let remaining = $state(seconds);
-  let intervalId: ReturnType<typeof setInterval> | null = null;
+  // Tính thời gian còn lại từ mốc hết giờ thay vì đếm lùi từng giây: trình duyệt làm chậm
+  // setInterval khi tab bị ẩn, đếm lùi sẽ bị trễ; cách này luôn đúng giờ thật.
+  const secondsLeft = () => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+
+  let remaining = $state(secondsLeft());
+  let expired = false;
 
   const mm = $derived(String(Math.floor(remaining / 60)).padStart(2, '0'));
   const ss = $derived(String(remaining % 60).padStart(2, '0'));
   const danger = $derived(remaining <= 30);
-  const pct    = $derived((remaining / seconds) * 100);
+  const pct    = $derived(totalSeconds > 0 ? (remaining / totalSeconds) * 100 : 0);
 
   $effect(() => {
-    intervalId = setInterval(() => {
-      remaining--;
-      if (remaining <= 0) {
-        clearInterval(intervalId!);
+    const tick = () => {
+      remaining = secondsLeft();
+      if (remaining <= 0 && !expired) {
+        expired = true;
         onExpire?.();
       }
-    }, 1000);
-    return () => clearInterval(intervalId!);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+    };
   });
 </script>
 

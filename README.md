@@ -52,8 +52,9 @@
 ## 🔮 Tính năng tương lai
 
 - [x] **Chia sẻ đề** — nút copy link / chia sẻ, đề công khai ôn được không cần đăng nhập
-- [ ] **Bảng xếp hạng** — hai loại bảng xếp hạng cho người tạo đề nhiều nhât và thi nhiều nhất
-- [ ] **Trang khám phá** — có thể xem các đề người khác đăng lên hoặc kênh của họ
+- [x] **Bảng xếp hạng** (`/xep-hang`) — ôn thi chăm nhất / tạo đề nhiều nhất, theo 7 ngày, 30 ngày hoặc tất cả
+- [x] **Trang khám phá** (`/kham-pha`) — tìm đề công khai (gõ không dấu được), lọc theo trình độ, sắp xếp phổ biến/mới nhất
+- [ ] **Trang cá nhân / kênh** — xem tất cả đề công khai của một người
 - [x] **Import file trực tiếp** — tự parse từ Word/PDF không cần AI
 - [ ] **Export đề** — xuất ra PDF, Word
 - [ ] **Nhóm học tập** — tạo lớp, chia sẻ đề trong nhóm
@@ -116,9 +117,10 @@ supabase/migrations/003_save_quiz_and_server_grading.sql
 supabase/migrations/004_keep_question_ids_on_edit.sql
 supabase/migrations/005_save_explanations.sql
 supabase/migrations/006_my_quiz_progress.sql
+supabase/migrations/007_explore_and_leaderboard.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–006 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–007 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 

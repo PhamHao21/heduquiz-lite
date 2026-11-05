@@ -20,6 +20,10 @@
       class="mt-7 inline-block rounded-2xl bg-indigo-600 px-8 py-4 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-100 transition-all hover:bg-indigo-700 hover:scale-105">
       Bắt đầu miễn phí →
     </a>
+    <a href="/kham-pha"
+      class="mt-3 block text-sm font-bold text-indigo-600 hover:underline">
+      hoặc xem các đề công khai, ôn ngay không cần đăng nhập
+    </a>
   </div>
 
   <!-- Features -->

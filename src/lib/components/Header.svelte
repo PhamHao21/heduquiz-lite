@@ -1,6 +1,6 @@
 <!-- src/lib/components/Header.svelte -->
 <script lang="ts">
-  import { Plus, BookOpen } from 'lucide-svelte';
+  import { Plus, BookOpen, Compass, Trophy } from 'lucide-svelte';
   import { page } from '$app/state';
   import { authStore } from '$lib/stores/auth.svelte';
 
@@ -31,17 +31,27 @@
 
 <nav class="sticky top-0 z-50 border-b border-slate-100 bg-white/90 backdrop-blur-md">
   <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-    <div class="flex items-center gap-5">
+    <div class="flex items-center gap-1 sm:gap-3">
       <a href={authStore.isAuthed ? '/kho-de' : '/'} class="text-xl font-black tracking-tighter text-indigo-600">
         HEDU<span class="text-orange-500">.</span>
       </a>
       {#if authStore.isAuthed}
-        <a href="/kho-de"
+        <a href="/kho-de" aria-label="Kho đề"
           class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-all
             {activeRoute.startsWith('/kho-de') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}">
-          <BookOpen size={16} /> KHO ĐỀ
+          <BookOpen size={16} /> <span class="hidden sm:inline">KHO ĐỀ</span>
         </a>
       {/if}
+      <a href="/kham-pha" aria-label="Khám phá"
+        class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-all
+          {activeRoute.startsWith('/kham-pha') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}">
+        <Compass size={16} /> <span class="hidden sm:inline">KHÁM PHÁ</span>
+      </a>
+      <a href="/xep-hang" aria-label="Xếp hạng"
+        class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-all
+          {activeRoute.startsWith('/xep-hang') ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-100'}">
+        <Trophy size={16} /> <span class="hidden sm:inline">XẾP HẠNG</span>
+      </a>
     </div>
 
     <div class="flex items-center gap-2">

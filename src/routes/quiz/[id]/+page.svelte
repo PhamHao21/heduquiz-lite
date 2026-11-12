@@ -173,7 +173,7 @@
     const ratio = answers.length ? answers.filter(a => a.is_correct).length / answers.length : 0;
     if (ratio < 0.8 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const { default: confetti } = await import('canvas-confetti');
-    const colors = ['#2446e8', '#5c7cff', '#f26a1b', '#3fcf8e', '#f5b544'];
+    const colors = ['#c7d2fe', '#6366f1', '#f26a1b', '#3fcf8e', '#f5b544'];
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.35 }, colors, disableForReducedMotion: true });
     setTimeout(() => confetti({ particleCount: 60, spread: 100, origin: { y: 0.3 }, colors, disableForReducedMotion: true }), 250);
   }

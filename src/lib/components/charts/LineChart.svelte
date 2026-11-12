@@ -78,7 +78,8 @@
     {/if}
 
     {#each data as d, i (d.date)}
-      {#if i % labelEvery === 0 || i === data.length - 1}
+      <!-- nhãn đều đặn, bỏ nhãn quá sát nhãn cuối để không dính chữ -->
+      {#if (i % labelEvery === 0 && data.length - 1 - i >= Math.ceil(labelEvery / 2)) || i === data.length - 1}
         <text x={x(i)} y={height - 6} text-anchor="middle" class="fill-faint text-[10px] tabular-nums">{shortDate(d.date)}</text>
       {/if}
     {/each}

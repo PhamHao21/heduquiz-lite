@@ -61,7 +61,7 @@
 <section class="mt-24">
   <h2 class="max-w-xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">Đủ công cụ cho cả mùa ôn thi.</h2>
   <div class="mt-8 grid gap-3 md:grid-cols-3">
-    <div class="rounded-2xl bg-accent p-6 text-on-accent md:col-span-2 md:p-8">
+    <div class="rounded-2xl bg-brand p-6 text-on-brand md:col-span-2 md:p-8">
       <FileUp size={26} />
       <p class="mt-6 text-xl font-bold">Nhập đề từ Word, PDF</p>
       <p class="mt-2 max-w-md text-sm leading-relaxed opacity-90">

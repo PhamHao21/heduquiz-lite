@@ -353,7 +353,7 @@ C. 110
             {#each questions as q, i (q.position)}
               <button onclick={() => { currentIndex = i; }}
                 class="h-8 min-w-8 rounded-lg px-1.5 text-xs font-bold tabular-nums transition
-                  {currentIndex === i ? 'bg-accent text-on-accent' : q.error ? 'bg-danger-soft text-danger' : 'bg-sunken text-muted hover:text-ink'}"
+                  {currentIndex === i ? 'bg-brand text-on-brand' : q.error ? 'bg-danger-soft text-danger' : 'bg-sunken text-muted hover:text-ink'}"
                 aria-label="Câu {i + 1}{q.error ? ', có lỗi' : ''}">{i + 1}</button>
             {/each}
           </div>

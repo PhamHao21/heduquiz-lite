@@ -22,7 +22,10 @@
     </div>
 
     {#if data.unavailable}
-      <p class="rounded-xl bg-warning-soft px-5 py-4 text-sm text-warning">Bảng tin chưa sẵn sàng: database chưa được cập nhật (migration 008).</p>
+      <div class="rounded-xl bg-warning-soft px-5 py-4 text-sm text-warning">
+        <p>Bảng tin chưa sẵn sàng: database chưa được cập nhật (migration 008).</p>
+        {#if data.errorDetail}<p class="mt-1 font-mono text-xs opacity-80">Chi tiết: {data.errorDetail}</p>{/if}
+      </div>
     {:else if data.feed.length === 0}
       <EmptyState icon={Newspaper} title="Bảng tin còn trống" description="Theo dõi vài tác giả để thấy đề mới của họ ở đây.">
         <a href="/kham-pha" class="btn btn-primary"><Compass size={16} /> Khám phá đề và tác giả</a>

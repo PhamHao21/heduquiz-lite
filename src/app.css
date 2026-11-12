@@ -15,23 +15,29 @@
   trực tiếp trong component, để giao diện sáng/tối luôn đồng bộ.
   - canvas: nền trang · surface: thẻ/khối · sunken: ô nhập, vùng phụ · line: viền
   - ink: chữ chính · muted: chữ phụ · faint: chữ mờ (chỉ cho chữ không quan trọng)
-  - accent: màu nhấn duy nhất (xanh cobalt) · success/danger/warning: chỉ dùng cho trạng thái
+  - brand: indigo 200, màu chủ đạo cho mảng màu lớn (nút chính, mục đang chọn, khối nổi bật), chữ trên nó dùng on-brand
+  - accent: indigo đậm cho chữ, icon, viền, biểu đồ (indigo 200 quá nhạt để làm chữ trên nền trắng)
+  - success/danger/warning: chỉ dùng cho trạng thái
   Quy ước bo góc: thẻ 16px (rounded-2xl) · nút, ô nhập 12px (rounded-xl) · chip, nhãn: tròn hẳn
 */
 :root {
-  --canvas: #f5f6f8;
+  --canvas: #f7f8fe;
   --surface: #ffffff;
-  --sunken: #eef0f3;
-  --line: #e2e5ea;
-  --line-strong: #cdd2da;
-  --ink: #12151b;
-  --muted: #545c69;
-  --faint: #7b8492;
+  --sunken: #eef1fd;
+  --line: #e2e6f5;
+  --line-strong: #c9cfe8;
+  --ink: #141529;
+  --muted: #55596f;
+  --faint: #7c8099;
 
-  --accent: #2446e8;
-  --accent-strong: #1b37c2;
-  --accent-soft: #e8ecff;
-  --accent-ink: #1a32a6;
+  --brand: #c7d2fe;
+  --brand-strong: #b3c0fd;
+  --on-brand: #1e1b4b;
+
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-soft: #e0e7ff;
+  --accent-ink: #3730a3;
   --on-accent: #ffffff;
 
   --success: #0c7a53;
@@ -48,20 +54,24 @@
 }
 
 .dark {
-  --canvas: #0c0e12;
-  --surface: #14171d;
-  --sunken: #1b1f27;
-  --line: #262b35;
-  --line-strong: #353b47;
-  --ink: #eceef2;
-  --muted: #a5adba;
-  --faint: #7d8696;
+  --canvas: #0d0e18;
+  --surface: #151726;
+  --sunken: #1c1f31;
+  --line: #282b42;
+  --line-strong: #383c5a;
+  --ink: #eceef8;
+  --muted: #a8abc4;
+  --faint: #7f839f;
 
-  --accent: #6d87ff;
-  --accent-strong: #8ea2ff;
-  --accent-soft: #1a2244;
-  --accent-ink: #b8c5ff;
-  --on-accent: #0c0e12;
+  --brand: #c7d2fe;
+  --brand-strong: #e0e7ff;
+  --on-brand: #1e1b4b;
+
+  --accent: #a5b4fc;
+  --accent-strong: #c7d2fe;
+  --accent-soft: #23264d;
+  --accent-ink: #c7d2fe;
+  --on-accent: #12132a;
 
   --success: #3fcf8e;
   --success-soft: #10291f;
@@ -88,6 +98,9 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-on-brand: var(--on-brand);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
@@ -161,7 +174,7 @@
     @apply inline-flex items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-muted transition hover:border-line-strong hover:text-ink;
   }
   .chip-active {
-    @apply border-accent bg-accent-soft text-accent-ink hover:border-accent hover:text-accent-ink;
+    @apply border-brand bg-brand text-on-brand hover:border-brand-strong hover:text-on-brand;
   }
   .tag {
     @apply inline-flex items-center gap-1 rounded-full bg-sunken px-2.5 py-0.5 text-[11px] font-semibold text-muted;
@@ -174,7 +187,7 @@
   .btn-sm { @apply px-3 py-2 text-[13px]; }
   .btn-lg { @apply px-5 py-3 text-[15px]; }
   .btn-icon { @apply p-2.5; }
-  .btn-primary { @apply bg-accent text-on-accent hover:bg-accent-strong; }
+  .btn-primary { @apply bg-brand text-on-brand hover:bg-brand-strong; }
   .btn-secondary { @apply border border-line bg-surface text-ink hover:border-line-strong hover:bg-sunken; }
   .btn-ghost { @apply text-muted hover:bg-sunken hover:text-ink; }
   .btn-danger { @apply bg-danger text-white hover:opacity-90; }

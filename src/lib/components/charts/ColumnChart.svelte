@@ -58,10 +58,6 @@
       <text x={M.left - 6} y={y(t)} dy="0.32em" text-anchor="end" class="fill-faint text-[10px] tabular-nums">{t}</text>
     {/each}
 
-    {#if reference && reference.value > 0}
-      <line x1={M.left} x2={width - M.right} y1={y(reference.value)} y2={y(reference.value)} stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3" />
-      <text x={width - M.right} y={y(reference.value) - 5} text-anchor="end" class="fill-muted text-[10px] font-semibold" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round" paint-order="stroke">{reference.label}</text>
-    {/if}
 
     {#each data as d, i (d.date)}
       {@const x = M.left + i * band + (band - barW) / 2}
@@ -72,10 +68,17 @@
       <!-- vùng bắt chuột rộng hơn cột -->
       <rect x={M.left + i * band} y={M.top} width={band} height={innerH} fill="transparent"
         role="presentation" onpointerenter={() => { active = i; }} />
-      {#if i % labelEvery === 0 || i === data.length - 1}
+      <!-- nhãn đều đặn, bỏ nhãn quá sát nhãn cuối để không dính chữ -->
+      {#if (i % labelEvery === 0 && data.length - 1 - i >= Math.ceil(labelEvery / 2)) || i === data.length - 1}
         <text x={M.left + i * band + band / 2} y={height - 6} text-anchor="middle" class="fill-faint text-[10px] tabular-nums">{shortDate(d.date)}</text>
       {/if}
     {/each}
+
+    <!-- đường mục tiêu vẽ sau cột để nhãn không bị cột che -->
+    {#if reference && reference.value > 0}
+      <line x1={M.left} x2={width - M.right} y1={y(reference.value)} y2={y(reference.value)} stroke="var(--muted)" stroke-width="1" stroke-dasharray="4 3" />
+      <text x={width - M.right} y={y(reference.value) - 5} text-anchor="end" class="fill-muted text-[10px] font-semibold" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round" paint-order="stroke">{reference.label}</text>
+    {/if}
   </svg>
 
   {#if tip}

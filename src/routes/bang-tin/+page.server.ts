@@ -25,6 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     feed,
     suggested,
     liked: await likedIds(locals.supabase, user.id, feed.map(f => f.id)),
-    unavailable: !!error
+    unavailable: !!error,
+    // Mã lỗi giúp chủ trang biết thiếu gì: PGRST202 = chưa có hàm (hoặc cần reload schema), 42703/42P01 = thiếu cột / bảng
+    errorDetail: error ? `${error.code ?? ''} ${error.message}`.trim() : null
   };
 };

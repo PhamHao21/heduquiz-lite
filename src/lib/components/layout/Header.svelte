@@ -29,7 +29,7 @@
     <nav class="hidden items-center gap-1 md:flex" aria-label="Điều hướng chính">
       {#each links as l (l.href)}
         <a href={l.href}
-          class="rounded-lg px-3 py-2 text-sm font-semibold transition {isActive(l.href) ? 'bg-surface text-ink shadow-sm ring-1 ring-line' : 'text-muted hover:text-ink'}"
+          class="rounded-lg px-3 py-2 text-sm font-semibold transition {isActive(l.href) ? 'bg-brand text-on-brand' : 'text-muted hover:text-ink'}"
           aria-current={isActive(l.href) ? 'page' : undefined}>
           {l.label}
         </a>

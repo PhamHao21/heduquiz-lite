@@ -29,11 +29,11 @@ sw.addEventListener('activate', (event) => {
 
 const OFFLINE_HTML = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mất kết nối · HeduQuiz</title><style>
-:root{color-scheme:light dark;--bg:#f5f6f8;--ink:#14161b;--muted:#5b6170;--accent:#2446e8}
-@media (prefers-color-scheme:dark){:root{--bg:#0c0e12;--ink:#eef0f4;--muted:#9aa1b0;--accent:#6d87ff}}
+:root{color-scheme:light dark;--bg:#f7f8fe;--ink:#141529;--muted:#55596f;--brand:#c7d2fe;--on-brand:#1e1b4b}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0e18;--ink:#eceef8;--muted:#a8abc4}}
 body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;padding:16px;text-align:center}
 h1{font-size:22px;margin:0 0 8px}p{color:var(--muted);margin:0 0 20px;line-height:1.5}
-button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 18px;background:var(--accent);color:#fff;cursor:pointer}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:10px 18px;background:var(--brand);color:var(--on-brand);cursor:pointer}
 </style></head><body><main><h1>Bạn đang offline</h1><p>Không kết nối được tới HeduQuiz.<br>Kiểm tra mạng rồi thử lại nhé.</p>
 <button onclick="location.reload()">Thử lại</button></main></body></html>`;
 

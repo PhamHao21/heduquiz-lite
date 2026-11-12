@@ -188,7 +188,7 @@
   }
   function letterClass(label: string, isCorrect: boolean) {
     const sel = currentChosen.includes(label);
-    if (!qRevealed) return sel ? 'border-accent bg-accent text-on-accent' : 'border-line-strong text-muted';
+    if (!qRevealed) return sel ? 'border-brand-strong bg-brand text-on-brand' : 'border-line-strong text-muted';
     if (isCorrect) return 'border-success bg-success text-surface';
     if (sel) return 'border-danger bg-danger text-surface';
     return 'border-line text-faint';

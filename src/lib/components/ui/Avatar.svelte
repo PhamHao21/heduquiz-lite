@@ -20,7 +20,7 @@
   />
 {:else}
   <span
-    class="inline-flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink {klass}"
+    class="inline-flex shrink-0 items-center justify-center rounded-full bg-brand font-bold text-on-brand {klass}"
     style="width:{size}px;height:{size}px;font-size:{Math.round(size * 0.42)}px;"
     aria-hidden="true"
   >{initial}</span>

@@ -43,7 +43,7 @@
           </a>
         {:else}
           <button onclick={onCreate} aria-label="Tạo đề mới"
-            class="my-1.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-on-accent shadow-md transition active:scale-95">
+            class="my-1.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-on-brand shadow-md transition active:scale-95">
             <Plus size={24} strokeWidth={2.5} />
           </button>
         {/if}

@@ -1,6 +1,6 @@
 <!-- src/lib/components/layout/UserMenu.svelte -->
 <script lang="ts">
-  import { UserRound, Settings, LogOut } from 'lucide-svelte';
+  import { UserRound, Settings, LogOut, BarChart3, History, Bookmark, LifeBuoy } from 'lucide-svelte';
   import Avatar from '$lib/components/ui/Avatar.svelte';
   import { authStore } from '$lib/stores/auth.svelte';
   import { invalidateAll, goto } from '$app/navigation';
@@ -17,6 +17,15 @@
   function onKeydown(e: KeyboardEvent) {
     if (open && e.key === 'Escape') open = false;
   }
+
+  const links = $derived([
+    { href: `/u/${profile.username}`, label: 'Trang cá nhân', icon: UserRound },
+    { href: '/thong-ke', label: 'Thống kê học tập', icon: BarChart3 },
+    { href: '/lich-su', label: 'Lịch sử làm bài', icon: History },
+    { href: '/bo-suu-tap', label: 'Bộ sưu tập', icon: Bookmark },
+    { href: '/thiet-lap', label: 'Thiết lập', icon: Settings },
+    { href: '/huong-dan', label: 'Hướng dẫn', icon: LifeBuoy }
+  ]);
 
   async function signOut() {
     open = false;
@@ -46,12 +55,12 @@
         {#if email}<p class="truncate text-xs text-muted">{email}</p>{/if}
       </div>
       <div class="my-1 h-px bg-line"></div>
-      <a href="/u/{profile.username}" role="menuitem" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink hover:bg-sunken" onclick={() => { open = false; }}>
-        <UserRound size={16} class="text-muted" /> Trang cá nhân
-      </a>
-      <a href="/thiet-lap" role="menuitem" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink hover:bg-sunken" onclick={() => { open = false; }}>
-        <Settings size={16} class="text-muted" /> Thiết lập
-      </a>
+      {#each links as l (l.href)}
+        <a href={l.href} role="menuitem" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink hover:bg-sunken" onclick={() => { open = false; }}>
+          <l.icon size={16} class="text-muted" /> {l.label}
+        </a>
+      {/each}
+      <div class="my-1 h-px bg-line"></div>
       <button role="menuitem" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-danger hover:bg-danger-soft" onclick={signOut}>
         <LogOut size={16} /> Đăng xuất
       </button>

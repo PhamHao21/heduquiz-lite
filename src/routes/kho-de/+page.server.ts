@@ -1,7 +1,7 @@
 // src/routes/kho-de/+page.server.ts
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { summariseActivity } from '$lib/utils/activity';
+import { dayKey, summariseActivity } from '$lib/utils/activity';
 import { likeCounts } from '$lib/server/social';
 
 export interface LikedQuiz {
@@ -42,7 +42,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     // Mốc thời gian làm bài trong ~4 tháng gần nhất để vẽ lịch hoạt động và tính chuỗi ngày ôn.
     locals.supabase
       .from('results')
-      .select('completed_at')
+      .select('completed_at, total')
       .eq('user_id', session.user.id)
       .gte('completed_at', since)
       .order('completed_at', { ascending: false })
@@ -66,7 +66,16 @@ export const load: PageServerLoad = async ({ locals }) => {
       owner_avatar: q!.owner?.avatar_url ?? null,
       owner_username: q!.owner?.username ?? null
     }));
-  const myLikeCounts = await likeCounts(locals.supabase, (quizzes ?? []).map(q => q.id as string));
+  const [myLikeCounts, { data: me }] = await Promise.all([
+    likeCounts(locals.supabase, (quizzes ?? []).map(q => q.id as string)),
+    // select('*') để vẫn chạy khi chưa có cột daily_goal (migration 009)
+    locals.supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
+  ]);
+  const today = dayKey(new Date());
+  const todayQuestions = (recent ?? [])
+    .filter(r => dayKey(new Date(r.completed_at as string)) === today)
+    .reduce((sum, r) => sum + Number(r.total ?? 0), 0);
+  const goal = Number((me as { daily_goal?: number } | null)?.daily_goal ?? 20);
 
   if (progressRes.error) console.error('my_quiz_progress failed:', progressRes.error.message);
   const progress = (progressRes.data ?? []) as QuizProgressRow[];
@@ -78,6 +87,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     activity,
     liked,
     myLikeCounts,
+    today: { questions: todayQuestions, goal },
     stats: {
       totalQuizzes:  quizzes?.length ?? 0,
       totalAttempts: totalAttempts ?? 0,

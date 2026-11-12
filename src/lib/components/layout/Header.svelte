@@ -1,6 +1,7 @@
 <!-- src/lib/components/layout/Header.svelte -->
 <script lang="ts">
-  import { Plus } from 'lucide-svelte';
+  import { Plus, Search } from 'lucide-svelte';
+  import { palette } from '$lib/stores/palette.svelte';
   import { page } from '$app/state';
   import Logo from './Logo.svelte';
   import UserMenu from './UserMenu.svelte';
@@ -36,6 +37,12 @@
     </nav>
 
     <div class="ml-auto flex items-center gap-1.5">
+      <button onclick={() => palette.show()} aria-label="Tìm kiếm (Ctrl K)" title="Tìm kiếm (Ctrl K)"
+        class="hidden h-9 w-56 items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-faint transition hover:border-line-strong hover:text-muted lg:flex">
+        <Search size={15} /> <span class="flex-1 text-left">Tìm kiếm...</span>
+        <kbd class="rounded-md border border-line bg-sunken px-1.5 font-mono text-[10px] text-muted">Ctrl K</kbd>
+      </button>
+      <button class="btn btn-ghost btn-icon lg:hidden" onclick={() => palette.show()} aria-label="Tìm kiếm"><Search size={18} /></button>
       <ThemeToggle />
       {#if profile}
         <NotificationBell />

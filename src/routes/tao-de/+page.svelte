@@ -299,7 +299,9 @@ C. 110
             <dt><code class="rounded bg-sunken px-1.5 py-0.5 font-mono text-xs">&gt; ...</code></dt><dd class="text-muted">Giải thích đáp án</dd>
             <dt><span class="text-xs font-semibold">Dòng trống</span></dt><dd class="text-muted">Sang câu mới</dd>
             <dt><code class="rounded bg-sunken px-1.5 py-0.5 font-mono text-xs">&lt;br /&gt;</code></dt><dd class="text-muted">Xuống dòng trong câu hỏi</dd>
+            <dt><code class="rounded bg-sunken px-1.5 py-0.5 font-mono text-xs">'Phần 2</code></dt><dd class="text-muted">Mở phần thi mới</dd>
           </dl>
+          <a href="/huong-dan#cu-phap" class="mt-3 inline-block text-sm font-semibold text-accent hover:underline">Xem hướng dẫn đầy đủ</a>
         {/if}
       </div>
 

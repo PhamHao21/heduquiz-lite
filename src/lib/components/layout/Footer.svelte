@@ -12,7 +12,9 @@
     <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted" aria-label="Liên kết cuối trang">
       <a href="/kham-pha" class="hover:text-ink">Khám phá</a>
       <a href="/xep-hang" class="hover:text-ink">Xếp hạng</a>
+      <a href="/bo-suu-tap" class="hover:text-ink">Bộ sưu tập</a>
       <a href="/tao-de" class="hover:text-ink">Tạo đề</a>
+      <a href="/huong-dan" class="hover:text-ink">Hướng dẫn</a>
       <span class="text-faint">© {new Date().getFullYear()} HeduQuiz</span>
     </nav>
   </div>

@@ -1,10 +1,11 @@
 <!-- src/routes/u/[username]/+page.svelte -->
 <script lang="ts">
-  import { FileText, Pencil, Plus, CalendarDays, Users } from 'lucide-svelte';
+  import { FileText, Pencil, Plus, CalendarDays, Users, Bookmark } from 'lucide-svelte';
   import Avatar from '$lib/components/ui/Avatar.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
   import QuizTile from '$lib/components/quiz/QuizTile.svelte';
   import FollowButton from '$lib/components/social/FollowButton.svelte';
+  import CollectionCard from '$lib/components/collections/CollectionCard.svelte';
   import { coverStyle } from '$lib/utils/cover';
   import { compactNumber } from '$lib/utils/time';
 
@@ -19,6 +20,7 @@
 
   const tabs = $derived([
     { key: 'de', label: 'Đề công khai', count: data.quizzes.length },
+    ...(data.collectionsAvailable ? [{ key: 'bo-suu-tap', label: 'Bộ sưu tập', count: data.collections.length }] : []),
     { key: 'nguoi-theo-doi', label: 'Người theo dõi', count: followers },
     { key: 'dang-theo-doi', label: 'Đang theo dõi', count: p.following_count ?? 0 }
   ]);
@@ -75,10 +77,21 @@
         {#if data.isMe}<a href="/kho-de" class="btn btn-primary"><Plus size={16} /> Mở Kho đề</a>{/if}
       </EmptyState>
     {:else}
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {#each data.quizzes as quiz (quiz.id)}
           <QuizTile {quiz} liked={liked.has(quiz.id)} showOwner={false} />
         {/each}
+      </div>
+    {/if}
+  {:else if data.tab === 'bo-suu-tap'}
+    {#if data.collections.length === 0}
+      <EmptyState icon={Bookmark} title={data.isMe ? 'Bạn chưa có bộ sưu tập nào' : `${name} chưa có bộ sưu tập công khai`}
+        description={data.isMe ? 'Gom các đề cùng chủ đề thành một danh sách để ôn và chia sẻ.' : undefined}>
+        {#if data.isMe}<a href="/bo-suu-tap" class="btn btn-primary"><Plus size={16} /> Tạo bộ sưu tập</a>{/if}
+      </EmptyState>
+    {:else}
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {#each data.collections as c (c.id)}<CollectionCard collection={{ ...c, owner: null }} showVisibility={data.isMe} />{/each}
       </div>
     {/if}
   {:else if data.people.length === 0}

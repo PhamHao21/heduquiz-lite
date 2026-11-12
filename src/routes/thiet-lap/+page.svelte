@@ -1,6 +1,6 @@
 <!-- src/routes/thiet-lap/+page.svelte -->
 <script lang="ts">
-  import { Sun, Moon, Monitor, LogOut, ExternalLink } from 'lucide-svelte';
+  import { Sun, Moon, Monitor, LogOut, ExternalLink, Target } from 'lucide-svelte';
   import { invalidateAll, goto } from '$app/navigation';
   import Avatar from '$lib/components/ui/Avatar.svelte';
   import { themeStore, type ThemePref } from '$lib/stores/theme.svelte';
@@ -38,6 +38,31 @@
       formError = err instanceof Error ? err.message : 'Lỗi không xác định';
     } finally {
       saving = false;
+    }
+  }
+
+  // ── Mục tiêu số câu mỗi ngày ──
+  const GOALS = [10, 20, 30, 50, 100];
+  let goal = $state(initial.daily_goal);
+  let savingGoal = $state(false);
+  async function setGoal(value: number) {
+    if (savingGoal || value === goal) return;
+    const before = goal;
+    goal = value;
+    savingGoal = true;
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_goal: value })
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? `Lỗi ${res.status}`);
+      toast.success(`Mục tiêu mới: ${value} câu mỗi ngày`);
+    } catch (err) {
+      goal = before;
+      toast.error(err instanceof Error ? err.message : 'Không lưu được mục tiêu');
+    } finally {
+      savingGoal = false;
     }
   }
 
@@ -102,6 +127,17 @@
       <button class="btn btn-primary" disabled={!canSave}>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
     </div>
   </form>
+
+  <!-- Mục tiêu hằng ngày -->
+  <section id="muc-tieu" class="card scroll-mt-24 p-6">
+    <p class="flex items-center gap-2 font-bold"><Target size={18} class="text-accent" /> Mục tiêu mỗi ngày</p>
+    <p class="mt-1 text-sm text-muted">Số câu bạn muốn làm mỗi ngày. Tiến độ hiện ở Kho đề và trang Thống kê.</p>
+    <div class="mt-4 flex flex-wrap gap-2" role="group" aria-label="Chọn mục tiêu">
+      {#each GOALS as g (g)}
+        <button class="chip {goal === g ? 'chip-active' : ''}" aria-pressed={goal === g} disabled={savingGoal} onclick={() => setGoal(g)}>{g} câu</button>
+      {/each}
+    </div>
+  </section>
 
   <!-- Giao diện -->
   <section class="card p-6">

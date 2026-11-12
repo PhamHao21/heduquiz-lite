@@ -1,0 +1,23 @@
+{
+  "name": "HeduQuiz - Ôn thi trắc nghiệm",
+  "short_name": "HeduQuiz",
+  "description": "Tạo đề trắc nghiệm, ôn thi và chia sẻ với bạn bè.",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#f5f6f8",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Kho đề", "url": "/kho-de", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Khám phá", "url": "/kham-pha", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Soạn đề mới", "url": "/tao-de", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Thống kê", "url": "/thong-ke", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

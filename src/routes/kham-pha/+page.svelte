@@ -1,6 +1,9 @@
 <!-- src/routes/kham-pha/+page.svelte -->
 <script lang="ts">
-  import { Search, Flame, Sparkles, Compass, ArrowLeft, ArrowRight, Heart, Trophy, Users } from 'lucide-svelte';
+  import { Search, Flame, Sparkles, Compass, ArrowLeft, ArrowRight, Heart, Trophy, Users, TrendingUp, Bookmark } from 'lucide-svelte';
+  import CollectionCard from '$lib/components/collections/CollectionCard.svelte';
+  import { coverStyle, initials } from '$lib/utils/cover';
+  import { compactNumber } from '$lib/utils/time';
   import AuthorCard from '$lib/components/social/AuthorCard.svelte';
   import QuizTile from '$lib/components/quiz/QuizTile.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -67,6 +70,42 @@
     </div>
   </div>
 
+  {#if data.trending.length > 0}
+    <section aria-labelledby="trending-title">
+      <h2 id="trending-title" class="mb-3 flex items-center gap-2 font-bold"><TrendingUp size={17} class="text-accent" /> Đang hot tuần này</h2>
+      <ol class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {#each data.trending as t, i (t.id)}
+          <li>
+            <a href="/quiz/{t.id}" class="card card-hover group flex items-center gap-3 p-3">
+              <span class="w-6 shrink-0 text-center text-lg font-extrabold tabular-nums {i < 3 ? 'text-accent' : 'text-faint'}">{i + 1}</span>
+              <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold text-white/90" style={coverStyle(t.id)} aria-hidden="true">{initials(t.title)}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-bold group-hover:text-accent">{t.title}</span>
+                <span class="block truncate text-xs text-muted">{t.owner_name} · {t.question_count} câu</span>
+              </span>
+              <span class="shrink-0 text-right">
+                <span class="block text-sm font-bold tabular-nums">{compactNumber(t.recent_plays)}</span>
+                <span class="block text-[11px] text-muted">lượt / 7 ngày</span>
+              </span>
+            </a>
+          </li>
+        {/each}
+      </ol>
+    </section>
+  {/if}
+
+  {#if data.collections.length > 0}
+    <section aria-labelledby="col-title">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 id="col-title" class="flex items-center gap-2 font-bold"><Bookmark size={17} class="text-accent" /> Bộ sưu tập nổi bật</h2>
+        <a href="/bo-suu-tap" class="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:underline">Xem thêm <ArrowRight size={14} /></a>
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {#each data.collections as c (c.id)}<CollectionCard collection={c} />{/each}
+      </div>
+    </section>
+  {/if}
+
   {#if data.authors.length > 0}
     <section>
       <h2 class="mb-3 flex items-center gap-2 font-bold"><Users size={17} class="text-accent" /> Tác giả nổi bật</h2>
@@ -93,7 +132,7 @@
     {/if}
   {:else}
     <p class="text-sm text-muted">{data.total} đề{data.q ? ` cho "${data.q}"` : ''}</p>
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {#each data.quizzes as quiz (quiz.id)}
         <QuizTile {quiz} liked={liked.has(quiz.id)} />
       {/each}

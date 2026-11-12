@@ -3,8 +3,9 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { followingIds, likeCounts, likedIds } from '$lib/server/social';
+import { listCollections } from '$lib/server/collections';
 
-export type ProfileTab = 'de' | 'nguoi-theo-doi' | 'dang-theo-doi';
+export type ProfileTab = 'de' | 'bo-suu-tap' | 'nguoi-theo-doi' | 'dang-theo-doi';
 
 export interface PersonRow {
   id: string; username: string; display_name: string | null; avatar_url: string | null;
@@ -14,7 +15,7 @@ export interface PersonRow {
 export const load: PageServerLoad = async ({ locals, params, url }) => {
   const { user } = await locals.safeGetSession();
   const tabParam = url.searchParams.get('tab');
-  const tab: ProfileTab = tabParam === 'nguoi-theo-doi' || tabParam === 'dang-theo-doi' ? tabParam : 'de';
+  const tab: ProfileTab = tabParam === 'nguoi-theo-doi' || tabParam === 'dang-theo-doi' || tabParam === 'bo-suu-tap' ? tabParam : 'de';
 
   // select('*') để vẫn chạy khi database chưa có cột follower_count (migration 008)
   const { data: profile } = await locals.supabase
@@ -33,10 +34,13 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     .limit(100);
 
   const ids = (rows ?? []).map(r => r.id as string);
-  const [likes, liked, followingMe] = await Promise.all([
+  const isMe = user?.id === profile.id;
+  const [likes, liked, followingMe, collections] = await Promise.all([
     likeCounts(locals.supabase, ids),
     likedIds(locals.supabase, user?.id, ids),
-    followingIds(locals.supabase, user?.id, [profile.id])
+    followingIds(locals.supabase, user?.id, [profile.id]),
+    // Người khác chỉ thấy bộ sưu tập công khai; chủ trang thấy cả bộ riêng tư của mình.
+    listCollections(locals.supabase, { ownerId: profile.id, publicOnly: !isMe, limit: 60 })
   ]);
 
   const quizzes = (rows ?? []).map(r => {
@@ -54,7 +58,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 
   // Danh sách người theo dõi / đang theo dõi (chỉ tải khi mở tab đó)
   let people: PersonRow[] = [];
-  if (tab !== 'de') {
+  if (tab === 'nguoi-theo-doi' || tab === 'dang-theo-doi') {
     const isFollowers = tab === 'nguoi-theo-doi';
     const { data } = await locals.supabase
       .from('follows')
@@ -79,6 +83,8 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     isFollowing: followingMe.includes(profile.id),
     totalPlays: quizzes.reduce((sum, q) => sum + (q.play_count ?? 0), 0),
     totalLikes: quizzes.reduce((sum, q) => sum + q.like_count, 0),
-    isMe: user?.id === profile.id
+    collections: collections.items,
+    collectionsAvailable: collections.available,
+    isMe
   };
 };

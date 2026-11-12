@@ -15,7 +15,7 @@ export const PATCH = async (event: RequestEvent) => {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== 'object') throw error(400, 'Invalid body');
 
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, string | number | null> = {};
   for (const key of Object.keys(LIMITS) as (keyof typeof LIMITS)[]) {
     const value = body[key];
     if (value === undefined) continue;
@@ -38,6 +38,12 @@ export const PATCH = async (event: RequestEvent) => {
     patch.username = username;
   }
 
+  if (body.daily_goal !== undefined) {
+    const goal = Number(body.daily_goal);
+    if (!Number.isInteger(goal) || goal < 5 || goal > 500) throw error(400, 'Mục tiêu mỗi ngày từ 5 đến 500 câu');
+    patch.daily_goal = goal;
+  }
+
   if (Object.keys(patch).length === 0) throw error(400, 'Không có gì để cập nhật');
 
   const { data, error: err } = await locals.supabase
@@ -49,6 +55,7 @@ export const PATCH = async (event: RequestEvent) => {
 
   if (err) {
     if (err.code === '23505') throw error(409, 'Tên người dùng này đã có người dùng');
+    if (err.code === '42703' || err.code === 'PGRST204') throw error(503, 'Tính năng này cần cập nhật database (migration 009)');
     throw error(500, err.message);
   }
   return json(data);

@@ -5,6 +5,7 @@
   import BottomNav from '$lib/components/layout/BottomNav.svelte';
   import Footer from '$lib/components/layout/Footer.svelte';
   import CreateSheet from '$lib/components/layout/CreateSheet.svelte';
+  import CommandPalette from '$lib/components/layout/CommandPalette.svelte';
   import NavProgress from '$lib/components/layout/NavProgress.svelte';
   import Toaster from '$lib/components/ui/Toaster.svelte';
   import '$lib/stores/theme.svelte';
@@ -23,4 +24,5 @@
 </div>
 <BottomNav onCreate={() => { createOpen = true; }} />
 <CreateSheet open={createOpen} onClose={() => { createOpen = false; }} />
+<CommandPalette onCreate={() => { createOpen = true; }} />
 <Toaster />

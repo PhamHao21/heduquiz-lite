@@ -8,6 +8,7 @@
   import LikeButton from '$lib/components/social/LikeButton.svelte';
   import FollowButton from '$lib/components/social/FollowButton.svelte';
   import CommentSection from '$lib/components/social/CommentSection.svelte';
+  import SaveToCollection from '$lib/components/collections/SaveToCollection.svelte';
   import { goto } from '$app/navigation';
   import { saveQuiz } from '$lib/supabase/saveQuiz';
   import { quizToText } from '$lib/utils/exportText';
@@ -414,6 +415,7 @@
       <div class="mt-3 flex flex-wrap gap-x-1 gap-y-1">
         <a href="/quiz/{quiz.id}/the-ghi-nho" class="btn btn-ghost btn-sm" class:pointer-events-none={total === 0}><Layers size={15} /> Thẻ ghi nhớ</a>
         <a href="/quiz/{quiz.id}/in" class="btn btn-ghost btn-sm"><Printer size={15} /> In / PDF</a>
+        {#if social.available}<SaveToCollection quizId={quiz.id} />{/if}
         {#if !isOwner}
           <button onclick={cloneQuiz} disabled={cloning || total === 0} class="btn btn-ghost btn-sm"><CopyPlus size={15} /> {cloning ? 'Đang lưu…' : 'Lưu bản sao'}</button>
         {/if}
@@ -483,15 +485,20 @@
 
     {#if history.length > 0}
       <section class="card rise-in rise-in-delay-2 p-6">
-        <h2 class="font-bold">Lịch sử ôn thi</h2>
+        <div class="flex items-baseline justify-between">
+          <h2 class="font-bold">Lịch sử ôn thi</h2>
+          <a href="/lich-su" class="text-xs font-semibold text-accent hover:underline">Xem tất cả</a>
+        </div>
         <ul class="mt-3 divide-y divide-line">
           {#each history as h (h.id)}
             {@const p = h.total ? Math.round((h.score / h.total) * 100) : 0}
-            <li class="flex items-center gap-4 py-3 text-sm">
-              <span class="text-muted">{formatDate(h.completed_at)}</span>
-              {#if h.time_spent}<span class="hidden text-faint sm:inline">{formatTime(h.time_spent)}</span>{/if}
-              <span class="ml-auto font-bold tabular-nums">{h.score}/{h.total}</span>
-              <span class="w-12 text-right text-xs font-bold tabular-nums {p >= 75 ? 'text-success' : p >= 50 ? 'text-warning' : 'text-danger'}">{p}%</span>
+            <li>
+              <a href="/lich-su/{h.id}" class="-mx-2 flex items-center gap-4 rounded-lg px-2 py-3 text-sm hover:bg-sunken" title="Xem lại bài làm">
+                <span class="text-muted">{formatDate(h.completed_at)}</span>
+                {#if h.time_spent}<span class="hidden text-faint sm:inline">{formatTime(h.time_spent)}</span>{/if}
+                <span class="ml-auto font-bold tabular-nums">{h.score}/{h.total}</span>
+                <span class="w-12 text-right text-xs font-bold tabular-nums {p >= 75 ? 'text-success' : p >= 50 ? 'text-warning' : 'text-danger'}">{p}%</span>
+              </a>
             </li>
           {/each}
         </ul>

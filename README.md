@@ -57,6 +57,25 @@
 - **Xếp hạng** (`/xep-hang`): ôn thi chăm nhất / tạo đề nhiều nhất / được theo dõi nhiều, theo 7 ngày, 30 ngày hoặc tất cả
 - **Trang cá nhân** (`/u/<tên>`): hồ sơ và các đề công khai của mỗi người
 
+### 📊 Thống kê và mục tiêu
+- **Thống kê học tập** (`/thong-ke`): số câu làm mỗi ngày, độ chính xác theo ngày và theo trình độ / môn, đề ôn nhiều nhất, so sánh với kỳ trước (7 / 30 / 90 ngày)
+- **Mục tiêu hằng ngày**: chọn số câu mỗi ngày trong Thiết lập, vòng tiến độ ở Kho đề và trang Thống kê
+- **Thành tích**: 10 huy hiệu, mỗi cái có các bậc Đồng, Bạc, Vàng, Kim cương
+- **Lịch sử làm bài** (`/lich-su`): mọi lần làm, nhóm theo ngày; xem lại từng câu đã chọn, lọc câu sai / đúng (`/lich-su/<id>`)
+
+### 🔖 Bộ sưu tập
+- Gom nhiều đề (của mình hoặc đề công khai của người khác) thành **bộ sưu tập**, để riêng tư hoặc công khai
+- Nút **Lưu vào bộ sưu tập** ngay trên trang đề, tạo bộ sưu tập mới tại chỗ
+- Trang bộ sưu tập (`/bo-suu-tap/<id>`): sửa tên, mô tả, bỏ đề, sao chép liên kết, mở đề ngẫu nhiên
+- Tab **Bộ sưu tập** trên trang cá nhân, mục **Bộ sưu tập nổi bật** trong Khám phá
+
+### 🔎 Tìm kiếm và trợ giúp
+- **Tìm nhanh** bằng `Ctrl` + `K` (hoặc phím `/`) ở mọi trang: đi tới trang, chạy lệnh, tìm đề / người dùng / bộ sưu tập, dùng hoàn toàn bằng bàn phím
+- Trang **Tìm kiếm** (`/tim-kiem`) với các tab Đề, Người dùng, Bộ sưu tập
+- **Đang hot tuần này** trong Khám phá: đề được làm nhiều nhất 7 ngày qua
+- **Hướng dẫn** (`/huong-dan`): cú pháp soạn đề, nhập file, các cách ôn, phím tắt, câu hỏi thường gặp
+- **Cài như ứng dụng** (PWA) trên điện thoại và máy tính, có trang báo khi mất mạng
+
 ### 🖨️ In và xuất đề
 - Trang in (`/quiz/<id>/in`): đề trắng, đáp án cuối đề hoặc trong từng câu, kèm giải thích, dòng họ tên
 - **In / lưu PDF** và **tải file .txt** (nhập lại được vào HeduQuiz)
@@ -139,9 +158,10 @@ supabase/migrations/005_save_explanations.sql
 supabase/migrations/006_my_quiz_progress.sql
 supabase/migrations/007_explore_and_leaderboard.sql
 supabase/migrations/008_social.sql
+supabase/migrations/009_collections_goals_search.sql
 ```
 
-> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–008 chạy lại nhiều lần cũng không sao.
+> Chạy lần lượt từng file theo đúng thứ tự. Các file 002–009 chạy lại nhiều lần cũng không sao.
 
 ### 4. Khởi động
 
@@ -190,16 +210,19 @@ src/
 ├── app.css              # Design tokens (sáng/tối), font, lớp dùng chung (.card, .btn, .input…)
 ├── lib/
 │   ├── components/
-│   │   ├── layout/      # Header, BottomNav (điện thoại), Footer, CreateSheet, UserMenu
+│   │   ├── layout/      # Header, BottomNav (điện thoại), Footer, CreateSheet, UserMenu, CommandPalette (Ctrl+K)
 │   │   ├── ui/          # ConfirmModal, Toaster, Avatar, EmptyState, ThemeToggle
 │   │   ├── quiz/        # QuizEngine, Timer, QuizTile
 │   │   ├── social/      # LikeButton, FollowButton, CommentSection, AuthorCard
+│   │   ├── collections/ # CollectionCard, SaveToCollection
+│   │   ├── charts/      # ColumnChart, LineChart, GoalRing (SVG tự vẽ)
 │   │   ├── dashboard/   # ActivityHeatmap
 │   │   └── landing/     # DemoQuestion
 │   ├── import/          # Đọc Word/PDF/TXT và chuẩn hoá về cú pháp đề
-│   ├── stores/          # auth, theme, toast (Svelte 5 runes)
-│   ├── supabase/        # client, saveQuiz
-│   └── utils/           # parser, attempt, review, activity, exportText, safeRedirect…
+│   ├── server/          # Truy vấn dùng chung phía server: social, collections, search
+│   ├── stores/          # auth, theme, toast, palette (Svelte 5 runes)
+│   ├── supabase/        # client, saveQuiz, social, collections
+│   └── utils/           # parser, attempt, review, activity, stats, achievements, text, exportText…
 ├── routes/
 │   ├── kho-de/          # Kho đề (bảng điều khiển)
 │   ├── tao-de/          # Tạo / sửa đề, nhập file
@@ -210,10 +233,17 @@ src/
 │   ├── u/[username]/    # Trang cá nhân (đề, người theo dõi, đang theo dõi)
 │   ├── bang-tin/        # Bảng tin từ người mình theo dõi
 │   ├── thong-bao/       # Thông báo
-│   ├── thiet-lap/       # Thiết lập tài khoản
+│   ├── thong-ke/        # Thống kê học tập, thành tích
+│   ├── lich-su/         # Lịch sử làm bài và xem lại từng lần
+│   ├── bo-suu-tap/      # Bộ sưu tập
+│   ├── tim-kiem/        # Kết quả tìm kiếm
+│   ├── huong-dan/       # Trung tâm hướng dẫn
+│   ├── thiet-lap/       # Thiết lập tài khoản, mục tiêu hằng ngày
 │   ├── auth/            # Đăng nhập
-│   └── api/             # Server endpoints
-supabase/migrations/     # 001 → 008, chạy lần lượt trong SQL Editor
+│   └── api/             # Server endpoints (attempts, quizzes, profile, search…)
+├── service-worker.ts    # PWA: cache file build, trang báo mất mạng
+static/                  # favicon, icon PWA, manifest.webmanifest
+supabase/migrations/     # 001 → 009, chạy lần lượt trong SQL Editor
 ```
 
 ---

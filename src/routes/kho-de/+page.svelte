@@ -1,7 +1,7 @@
 <!-- src/routes/kho-de/+page.svelte -->
 <script lang="ts">
   import {
-    FileText, Users, Repeat, Flame, Search, Plus, Globe, Lock, Pencil, Trash2, Compass, ArrowRight, History, Play, Heart
+    FileText, Users, Repeat, Flame, Search, Plus, Globe, Lock, Pencil, Trash2, Compass, ArrowRight, History, Play, Heart, BarChart3, Bookmark
   } from 'lucide-svelte';
   import QuizTile from '$lib/components/quiz/QuizTile.svelte';
   import { page } from '$app/state';
@@ -9,6 +9,7 @@
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
   import ActivityHeatmap from '$lib/components/dashboard/ActivityHeatmap.svelte';
+  import GoalRing from '$lib/components/charts/GoalRing.svelte';
   import { toast } from '$lib/stores/toast.svelte';
 
   const { data } = $props();
@@ -242,6 +243,17 @@
 
     <!-- Cột phụ -->
     <aside class="space-y-4">
+      <div class="card flex items-center gap-4 p-5">
+        <GoalRing value={data.today.questions} goal={data.today.goal} size={84} />
+        <div class="min-w-0">
+          <h2 class="font-bold">Mục tiêu hôm nay</h2>
+          <p class="mt-0.5 text-sm text-muted">
+            {data.today.questions >= data.today.goal ? 'Bạn đã hoàn thành, tuyệt lắm!' : `Còn ${data.today.goal - data.today.questions} câu nữa`}
+          </p>
+          <a href="/thong-ke" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">Xem thống kê <ArrowRight size={12} /></a>
+        </div>
+      </div>
+
       <div class="card p-5">
         <div class="flex items-baseline justify-between">
           <h2 class="font-bold">Hoạt động</h2>
@@ -258,6 +270,18 @@
           {/if}
         </p>
       </div>
+
+      <nav class="card grid grid-cols-3 divide-x divide-line overflow-hidden" aria-label="Lối tắt">
+        {#each [
+          { href: '/thong-ke', label: 'Thống kê', icon: BarChart3 },
+          { href: '/lich-su', label: 'Lịch sử', icon: History },
+          { href: '/bo-suu-tap', label: 'Bộ sưu tập', icon: Bookmark }
+        ] as l (l.href)}
+          <a href={l.href} class="flex flex-col items-center gap-1.5 px-2 py-4 text-xs font-semibold text-muted transition hover:bg-sunken hover:text-ink">
+            <l.icon size={18} class="text-accent" /> {l.label}
+          </a>
+        {/each}
+      </nav>
 
       {#if toReview.length > 0}
         <div class="card p-5">

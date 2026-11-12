@@ -8,12 +8,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   const { data: profile } = await locals.supabase
     .from('profiles')
-    .select('username, display_name, bio, avatar_url')
+    .select('*')
     .eq('id', user.id)
     .maybeSingle();
 
+  const me = (profile ?? {}) as { username?: string; display_name?: string | null; bio?: string | null; avatar_url?: string | null; daily_goal?: number };
   return {
     email: user.email ?? '',
-    me: profile ?? { username: '', display_name: '', bio: '', avatar_url: null }
+    me: {
+      username: me.username ?? '',
+      display_name: me.display_name ?? '',
+      bio: me.bio ?? '',
+      avatar_url: me.avatar_url ?? null,
+      daily_goal: me.daily_goal ?? 20,
+      hasGoalColumn: me.daily_goal !== undefined
+    }
   };
 };
